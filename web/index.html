@@ -1,0 +1,4228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0e1317">
+<title>Hulma 3D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+:root{
+  /* survey-darkroom: deep blue-grey workbench, survey-target orange for actions, cyan for masks */
+  --bg:#0e1317; --panel:#151c22; --raise:#1c252d; --line:#283540; --ink:#e7edf1; --mute:#8b9aa7;
+  --accent:#ff7a2f; --accent-ink:#1a0d04; --mask:#3fd0c9; --good:#5ad17a; --warn:#f2c14e; --bad:#ff6363;
+  --display:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif; --mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--display);-webkit-tap-highlight-color:transparent}
+button,select,input{font:inherit;color:inherit}
+.app{max-width:1200px;margin:0 auto;padding:12px 16px 40px;display:grid;gap:14px;grid-template-columns:1fr}
+@media (min-width:900px){.app{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);align-items:start}.view{position:sticky;top:12px}}
+header{grid-column:1/-1;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.logo{width:34px;height:34px;flex:none}
+h1{font-size:20px;margin:0;letter-spacing:-.01em;text-wrap:balance}
+h1 small{display:block;font-size:12.5px;font-weight:400;color:var(--mute);letter-spacing:0}
+.view{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.stage{position:relative;height:min(56vh,540px);min-height:300px;background:radial-gradient(120% 90% at 50% 40%,#1b2832 0%,#0b1014 70%)}
+.stage canvas{width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+.stage .hint{position:absolute;left:12px;bottom:10px;font-size:12px;color:var(--mute);pointer-events:none}
+.stage .badge{position:absolute;left:12px;top:10px;font:500 12px var(--mono);background:#0b1014cc;border:1px solid var(--line);padding:3px 8px;border-radius:99px}
+.stage .empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:var(--mute);padding:24px;pointer-events:none}
+.vbar{display:flex;gap:6px;flex-wrap:wrap;padding:10px;border-top:1px solid var(--line)}
+.chip{border:1px solid var(--line);background:var(--raise);border-radius:99px;padding:6px 12px;font-size:13px;cursor:pointer}
+.chip[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
+.stats{margin-left:auto;font:12px var(--mono);color:var(--mute);align-self:center}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.tabs{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--line)}
+.tab{background:none;border:0;padding:12px 4px 10px;cursor:pointer;color:var(--mute);border-bottom:2px solid transparent;font-size:14px}
+.tab b{display:block;font:500 11px var(--mono);color:var(--mute)}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.tab[aria-selected="true"] b{color:var(--accent)}
+.pane{padding:16px;display:none;gap:14px;flex-direction:column}
+.pane.on{display:flex}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn{border:1px solid var(--line);background:var(--raise);border-radius:10px;padding:10px 14px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;font-weight:500}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.ghost{background:none}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn:focus-visible,.chip:focus-visible,.tab:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn svg{width:18px;height:18px}
+.note{font-size:13.5px;color:var(--mute);max-width:65ch}
+.note b{color:var(--ink);font-weight:500}
+.callout{border:1px solid var(--line);border-left:3px solid var(--accent);background:var(--raise);border-radius:10px;padding:10px 12px;font-size:13.5px}
+.callout.example{border-left-color:var(--mask)}
+.planner{display:flex;gap:14px;align-items:center;background:var(--raise);border:1px solid var(--line);border-radius:12px;padding:12px}
+.planner canvas{width:96px;height:96px;flex:none}
+.planner .big{font-size:18px;font-weight:600}
+.planner .sub{font-size:13px;color:var(--mute)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px}
+.thumb{position:relative;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:#000;aspect-ratio:4/3}
+.thumb img,.thumb canvas{width:100%;height:100%;object-fit:cover;display:block}
+.thumb .n{position:absolute;left:4px;top:3px;font:500 11px var(--mono);background:#000a;padding:0 5px;border-radius:4px}
+.thumb .x{position:absolute;right:3px;top:3px;width:22px;height:22px;border-radius:6px;border:0;background:#000b;cursor:pointer;line-height:22px;padding:0;font-size:14px}
+.thumb.warn{border-color:var(--warn)}
+#masks .thumb{cursor:zoom-in}
+#masks .thumb.big{grid-column:1/-1;aspect-ratio:auto;cursor:zoom-out}
+#masks .thumb.big canvas{height:auto;object-fit:contain}
+.thumb .w{position:absolute;left:4px;bottom:3px;font:500 10px var(--mono);color:var(--bg);background:var(--warn);padding:0 4px;border-radius:3px}
+.field{display:grid;gap:6px}
+.field label{font-size:13px;color:var(--mute);display:flex;justify-content:space-between;gap:10px}
+.field label output{font:500 12.5px var(--mono);color:var(--ink)}
+input[type=range]{width:100%;accent-color:var(--accent)}
+select,input[type=number]{background:var(--raise);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:420px){.two{grid-template-columns:1fr}}
+.seg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{flex:1;background:var(--raise);border:0;padding:8px 6px;cursor:pointer;font-size:13px;color:var(--mute)}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:#2a1a10;color:var(--accent)}
+.progress{height:8px;background:var(--raise);border-radius:99px;overflow:hidden;border:1px solid var(--line)}
+.progress i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
+.result{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+.kv{background:var(--raise);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.kv span{display:block;font-size:11.5px;color:var(--mute)}
+.kv strong{font:500 15px var(--mono);font-variant-numeric:tabular-nums}
+.pill{display:inline-block;font:500 11px var(--mono);padding:1px 7px;border-radius:99px;margin-left:6px;vertical-align:1px}
+.pill.good{background:#173622;color:var(--good)}.pill.ok{background:#3a3115;color:var(--warn)}.pill.bad{background:#3d1717;color:var(--bad)}
+details{border:1px solid var(--line);border-radius:10px;background:var(--raise)}
+details summary{cursor:pointer;padding:10px 12px;font-weight:500;font-size:14px}
+details ol,details ul{margin:0;padding:0 14px 12px 30px;font-size:13.5px;color:var(--mute)}
+details li{margin:4px 0}
+details li b{color:var(--ink);font-weight:500}
+.toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 14px;border-radius:10px;font-size:14px;font-weight:500;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90vw;z-index:9}
+.toast.on{opacity:1}
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px 12px 0}
+.modes button{display:flex;align-items:center;gap:10px;text-align:left;background:var(--raise);border:1px solid var(--line);border-radius:12px;padding:10px 12px;cursor:pointer;font-weight:600;font-size:15px}
+.modes button small{display:block;font-weight:400;font-size:12px;color:var(--mute)}
+.modes button svg{width:24px;height:24px;flex:none;color:var(--mute)}
+.modes button[aria-pressed="true"]{border-color:var(--accent);background:#24170e}
+.modes button[aria-pressed="true"] svg{color:var(--accent)}
+.modes button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.callout.ok{border-left-color:var(--good)}.callout.no{border-left-color:var(--warn)}
+.xr{position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;justify-content:space-between;padding:max(12px,env(safe-area-inset-top)) 12px max(16px,env(safe-area-inset-bottom));background:transparent;font-family:var(--display);color:#fff}
+.xrTop{display:flex;gap:10px;align-items:flex-start}
+.xrMsg{flex:1;background:#0b1014cc;border-radius:10px;padding:9px 12px;font-size:14px;line-height:1.35}
+.xrPanel{background:#0b1014d9;border:1px solid #ffffff22;border-radius:14px;padding:12px;display:grid;gap:10px}
+.xrPanel .field label{color:#cfd8de}
+.xrCount{display:flex;align-items:baseline;gap:8px}
+.xrCount strong{font:600 28px var(--mono);font-variant-numeric:tabular-nums}
+.xrCount span{color:#cfd8de}
+.xr .btn{background:#1c252dee;color:#fff}
+.xr .btn.primary{background:var(--accent);color:var(--accent-ink)}
+.share{grid-column:1/-1}
+.app.shareWrap{padding-top:0;display:block}
+.shareIn{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px;padding:18px;align-items:start}
+@media (max-width:640px){.shareIn{grid-template-columns:1fr}.qrBox{order:-1;justify-self:center}}
+.shareText{display:grid;gap:12px;min-width:0}
+.shareText h2{margin:0;font-size:18px;text-wrap:balance}
+.qlink{font:12.5px var(--mono);color:var(--ink);background:var(--raise);border:1px solid var(--line);border-radius:8px;padding:8px 10px;overflow-wrap:anywhere}
+.qrBox{display:grid;gap:6px;justify-items:center}
+.qrBox canvas{width:min(260px,70vw);height:auto;aspect-ratio:1;background:#fff;border-radius:14px;display:block}
+.qrBox span{font-size:12.5px;color:var(--mute)}
+#getApp svg{width:18px;height:18px}
+.hidden{display:none!important}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <svg class="logo" viewBox="0 0 34 34" aria-hidden="true"><rect width="34" height="34" rx="9" fill="#1c252d"/><path d="M17 6 27 11.5v11L17 28 7 22.5v-11z" fill="none" stroke="#ff7a2f" stroke-width="2.2" stroke-linejoin="round"/><path d="M7 11.5 17 17l10-5.5M17 17v11" fill="none" stroke="#3fd0c9" stroke-width="1.6" stroke-linejoin="round"/></svg>
+    <h1>Hulma 3D<small>Photos in, 3D model out. Photogrammetry on your phone.</small></h1>
+    <button class="btn" id="getApp" style="margin-left:auto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/></svg>Get the app</button>
+  </header>
+
+  <section class="view" aria-label="3D model viewer">
+    <div class="stage">
+      <canvas id="gl" aria-label="3D model. Drag to rotate, pinch or scroll to zoom."></canvas>
+      <div class="badge" id="vbadge">No model yet</div>
+      <div class="empty" id="vempty">Your 3D model shows up here after step 3.</div>
+      <div class="hint">Drag to rotate · pinch to zoom</div>
+    </div>
+    <div class="vbar">
+      <button class="chip" id="vColor" aria-pressed="true">Photo colours</button>
+      <button class="chip" id="vClay" aria-pressed="false">Clay</button>
+      <button class="chip" id="vSpin" aria-pressed="true">Auto-spin</button>
+      <button class="chip" id="vCams" aria-pressed="false">Camera ring</button>
+      <button class="chip" id="vReset">Reset view</button>
+      <span class="stats" id="vstats"></span>
+    </div>
+  </section>
+
+  <section class="panel" aria-label="Scan steps">
+    <div class="modes">
+      <button id="mObject" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3 20 7.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5 12 12l8-4.5M12 12v9"/></svg><span>Object<small>from photos</small></span></button>
+      <button id="mPlace" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 20V9l9-5 9 5v11"/><path d="M3 20h18M9 20v-6h6v6"/></svg><span>Place<small>AR depth scan</small></span></button>
+    </div>
+
+    <!-- PLACE MODE -->
+    <div id="placeUI" class="hidden">
+      <div class="pane on">
+        <div class="callout example" id="placeDemoNote">Example loaded: a scanned living room as a point cloud. Start a place scan to capture your own.</div>
+        <div class="callout" id="arState">Checking AR support…</div>
+        <div class="two">
+          <div class="field"><label for="vox">Point spacing</label>
+            <select id="vox"><option value="0.015">Fine, 1.5 cm (desk, small room)</option><option value="0.025" selected>Normal, 2.5 cm</option><option value="0.04">Coarse, 4 cm (big spaces)</option></select></div>
+          <div class="field"><label for="range">Max distance</label>
+            <select id="range"><option value="2.5">2.5 m (most detail)</option><option value="4" selected>4 m</option><option value="6">6 m (reaches far, noisier)</option></select></div>
+        </div>
+        <div class="row">
+          <button class="btn primary" id="scanBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><circle cx="12" cy="12" r="3"/></svg>Start place scan</button>
+          <button class="btn" id="placeAR">View in AR</button>
+          <button class="btn" id="placeZip">Download (.zip)</button>
+        </div>
+        <div class="result" id="placeStats"></div>
+        <details>
+          <summary>How to scan a place</summary>
+          <ol>
+            <li>Stand in the room and tap <b>Start place scan</b>. Allow camera access.</li>
+            <li>Move the phone <b>slowly</b>, like spray-painting: floor, each wall, then furniture from a couple of angles.</li>
+            <li>Watch the dots fill in on screen. Gaps mean that area still needs a pass.</li>
+            <li>Tap <b>Finish</b> when done. About a minute covers a small room.</li>
+            <li>Glass, mirrors, shiny and very dark surfaces don't give depth and will stay empty.</li>
+          </ol>
+        </details>
+      </div>
+    </div>
+
+    <div id="objectUI">
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" id="t1" aria-selected="true" data-p="p1"><b>01</b>Photos</button>
+      <button class="tab" role="tab" id="t2" aria-selected="false" data-p="p2"><b>02</b>Masks</button>
+      <button class="tab" role="tab" id="t3" aria-selected="false" data-p="p3"><b>03</b>Build</button>
+      <button class="tab" role="tab" id="t4" aria-selected="false" data-p="p4"><b>04</b>Export</button>
+    </div>
+
+    <!-- 1 PHOTOS -->
+    <div class="pane on" id="p1" role="tabpanel" aria-labelledby="t1">
+      <div class="callout example" id="demoNote">Example loaded: a toy robot photographed from 24 angles. Tap <b>New scan</b> to start your own.</div>
+      <div class="planner">
+        <canvas id="ring" width="192" height="192" aria-hidden="true"></canvas>
+        <div style="display:grid;gap:4px;min-width:0">
+          <div class="big" id="nextBig">Photo 1 of 24</div>
+          <div class="sub" id="nextSub">Object at mark 1 (0°), facing the camera.</div>
+          <div class="row" style="margin-top:4px">
+            <label class="note" for="target">Stops around</label>
+            <select id="target" style="width:auto"><option>12</option><option>16</option><option selected>24</option><option>36</option><option>48</option></select>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <label class="btn primary" for="camIn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Take photo</label>
+        <input id="camIn" type="file" accept="image/*" capture="environment" class="hidden">
+        <label class="btn" for="galIn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m3 16 5-5 4 4 3-3 6 6"/></svg>Add from gallery</label>
+        <input id="galIn" type="file" accept="image/*" multiple class="hidden">
+        <button class="btn ghost" id="newScan">New scan</button>
+      </div>
+      <div class="note" id="photoCount"></div>
+      <div class="grid" id="thumbs"></div>
+      <details>
+        <summary>How to shoot for a good model</summary>
+        <ol>
+          <li><b>Plain background.</b> Put the object on a sheet or wall that is a different colour from it. White object? Use a dark cloth.</li>
+          <li><b>Keep it all in frame</b> with some space around it. The object must not touch the photo edges.</li>
+          <li><b>Hold the phone still</b> (prop it on books or a tripod). Turn the <b>object</b> by the same step each time, on a lazy susan or the mat below.</li>
+          <li>No turntable? <b>Walk around</b> it in a circle, same distance and height, and choose <b>Hand-held</b> in step 3.</li>
+          <li>Go all the way round in one direction. <b>24 photos</b> is a good start; 36 for detailed shapes.</li>
+          <li>Even, soft light. Avoid hard shadows on the background.</li>
+        </ol>
+        <div class="row" style="padding:0 12px 12px">
+          <button class="btn" id="matBtn">Get turntable mat (.png)</button>
+          <span class="note">Print it on white paper, set it on a white table, line up each number with a fixed marker in front.</span>
+        </div>
+      </details>
+    </div>
+
+    <!-- 2 MASKS -->
+    <div class="pane" id="p2" role="tabpanel" aria-labelledby="t2">
+      <div class="note">The app cuts the object out of each photo (cyan). The model can only be as good as these cut-outs, so tune until every photo shows the whole object and no background.</div>
+      <div class="two">
+        <div class="field"><label for="thr">Background difference <output id="thrO">30</output></label><input type="range" id="thr" min="8" max="90" value="30"></div>
+        <div class="field"><label for="shadow">Ignore shadows <output id="shadowO">65%</output></label><input type="range" id="shadow" min="0" max="100" value="65"></div>
+      </div>
+      <div class="note" id="maskSummary"></div>
+      <div class="grid" id="masks"></div>
+    </div>
+
+    <!-- 3 BUILD -->
+    <div class="pane" id="p3" role="tabpanel" aria-labelledby="t3">
+      <div class="field"><label>Detail</label>
+        <div class="seg" id="quality"><button data-v="56">Draft</button><button data-v="96" aria-pressed="true">Normal</button><button data-v="128">High</button><button data-v="160">Max</button></div>
+      </div>
+      <div class="field"><label>How you shot it</label>
+        <div class="seg" id="center"><button data-v="global" aria-pressed="true">Phone fixed, object turned</button><button data-v="each">Hand-held, walked around</button></div>
+      </div>
+      <div class="two">
+        <div class="field"><label for="dir">Turn direction</label>
+          <select id="dir"><option value="0" selected>Auto-detect</option><option value="1">Counter-clockwise</option><option value="-1">Clockwise</option></select></div>
+        <div class="field"><label for="elMode">Camera height <output id="elO">auto</output></label>
+          <select id="elMode"><option value="auto" selected>Auto-detect</option><option value="5">Level with object (≈5°)</option><option value="20">Slightly above (≈20°)</option><option value="35">Looking down (≈35°)</option><option value="50">High above (≈50°)</option></select></div>
+        <div class="field"><label for="lens">Lens (35mm equiv.) <output id="lensO"></output></label>
+          <select id="lens"><option value="auto" selected>From photo info</option><option value="13">Ultra-wide 13mm</option><option value="26">Main camera 26mm</option><option value="52">2× zoom 52mm</option><option value="77">3× zoom 77mm</option></select></div>
+        <div class="field"><label for="strict">Cut-out tolerance</label>
+          <select id="strict"><option value="auto" selected>Forgiving (1 bad photo OK)</option><option value="0">Strict (sharper, needs clean masks)</option><option value="2">Very forgiving (2 bad photos OK)</option></select></div>
+      </div>
+      <div class="row"><button class="btn primary" id="buildBtn">Build 3D model</button><span class="note" id="buildStatus"></span></div>
+      <div class="progress" aria-hidden="true"><i id="bar"></i></div>
+      <div class="result" id="result"></div>
+      <div class="note" id="resultNote"></div>
+    </div>
+
+    <!-- 4 EXPORT -->
+    <div class="pane" id="p4" role="tabpanel" aria-labelledby="t4">
+      <div class="two">
+        <div class="field"><label for="height">Real height of the object (cm)</label><input type="number" id="height" min="0.5" max="500" step="0.5" value="10"></div>
+        <div class="field"><label for="fname">File name</label><input type="text" id="fname" value="hulma-model" style="background:var(--raise);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%"></div>
+      </div>
+      <div class="row">
+        <button class="btn primary" id="objAR" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3 20 7.5v9L12 21l-8-4.5v-9z"/><path d="M2 4V2h2M22 4V2h-2M2 20v2h2M22 20v2h-2"/></svg>View in AR</button>
+        <button class="btn" id="zipBtn" disabled>Download 3D files (.zip)</button>
+        <button class="btn" id="shotBtn" disabled>Save snapshot (.png)</button>
+      </div>
+      <div class="note" id="objArNote"></div>
+      <div class="note">The zip holds <b>model.glb</b> (real size in metres, for AR apps and Windows 3D Viewer), <b>model.obj</b> and <b>model.ply</b> with colours (Blender, MeshLab) and <b>model.stl</b> for 3D-printing slicers. OBJ/PLY/STL are in centimetres, scaled to the height above.</div>
+      <div class="callout">This builds the shape from the object's outline in every photo, so it captures the overall form well but fills in hollows like the inside of a cup or the gap under an arm. Solid, chunky objects scan best.</div>
+    </div>
+    </div>
+  </section>
+</div>
+<div class="app shareWrap">
+  <section class="panel share" id="share" aria-label="Get the app and share">
+    <div class="shareIn">
+      <div class="shareText">
+        <h2>Get the app and share it</h2>
+        <div class="seg" id="qrKind"><button data-v="apk" aria-pressed="true">Android app (APK)</button><button data-v="web">Web app link</button></div>
+        <p class="note" id="qrHelp"></p>
+        <div class="qlink" id="qrLink"></div>
+        <div class="row">
+          <button class="btn" id="qrShare">Share link</button>
+          <button class="btn" id="qrCopy">Copy link</button>
+          <button class="btn" id="qrSave">Save QR (.png)</button>
+        </div>
+        <details>
+          <summary>Installing the APK</summary>
+          <ol>
+            <li>Scan the code with the phone's camera and open the link. <b>hulma-3d.apk</b> downloads.</li>
+            <li>Open the file. If Android asks, allow <b>Install unknown apps</b> for your browser.</li>
+            <li>If Play Protect warns about an unknown app, tap <b>More details</b>, then <b>Install anyway</b>.</li>
+            <li>Hulma runs inside <b>Chrome</b>, so keep Chrome installed and updated. AR also needs <b>Google Play Services for AR</b>.</li>
+            <li>The first launch needs internet. After that it opens offline too.</li>
+            <li>New builds install over the old one, and the same QR code always gets the newest version.</li>
+          </ol>
+        </details>
+        <details>
+          <summary>Change link</summary>
+          <div class="field" style="padding:0 12px"><label for="repo">GitHub account/repo the links point to</label><input type="text" id="repo" spellcheck="false" autocomplete="off" style="background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%;font:13px var(--mono)"></div>
+          <div class="row" style="padding:10px 12px 12px"><button class="btn" id="repoSave">Use this repo</button><button class="btn ghost" id="repoReset">Reset</button></div>
+        </details>
+      </div>
+      <div class="qrBox"><canvas id="qr" width="600" height="600" aria-label="QR code for the selected link"></canvas><span id="qrCap"></span></div>
+    </div>
+  </section>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<!-- AR overlay (becomes the WebXR DOM overlay) -->
+<div id="xrOverlay" class="xr hidden">
+  <div class="xrTop xrc">
+    <button class="btn" id="xrExit">Exit AR</button>
+    <div class="xrMsg" id="xrMsg" role="status">Starting AR…</div>
+  </div>
+  <div class="xrBottom xrc">
+    <div id="xrViewCtl" class="xrPanel hidden">
+      <div class="field"><label for="xrRot">Turn <output id="xrRotO">0°</output></label><input type="range" id="xrRot" min="-180" max="180" value="0"></div>
+      <div class="field"><label for="xrSize">Size <output id="xrSizeO">100%</output></label><input type="range" id="xrSize" min="-200" max="60" value="0"></div>
+      <div class="row"><button class="btn" id="xrReal">Real size</button><button class="btn" id="xrMini">Tabletop size</button></div>
+    </div>
+    <div id="xrScanCtl" class="xrPanel hidden">
+      <div class="xrCount"><strong id="xrCount">0</strong><span>points</span></div>
+      <div class="row"><button class="btn" id="xrPause">Pause</button><button class="btn primary" id="xrFinish">Finish</button></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* Hulma 3D core — silhouette photogrammetry (shape-from-silhouette + view-dependent colour) */
+(function (root) {
+'use strict';
+const H = {};
+const D2R = Math.PI / 180;
+const tick = () => new Promise(r => setTimeout(r, 0));
+H.tick = tick;
+
+function norm(v) { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; }
+function cross(a, b) { return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]; }
+
+/* ---------- camera model ----------
+   World: Y up, object on the turntable axis at the origin.
+   Camera orbits at azimuth az, elevation el, distance dist, looking at the origin.
+   Image: x right, y down. */
+H.makeCamera = function (azDeg, elDeg, dist, f, w, h, cx, cy) {
+  const az = azDeg * D2R, el = elDeg * D2R;
+  const C = [dist * Math.cos(el) * Math.sin(az), dist * Math.sin(el), dist * Math.cos(el) * Math.cos(az)];
+  const k = norm([-C[0], -C[1], -C[2]]);
+  const r = norm(cross(k, [0, 1, 0]));
+  const d = cross(k, r);
+  return { C, r, d, k, f, w, h, cx: cx == null ? w / 2 : cx, cy: cy == null ? h / 2 : cy };
+};
+H.focalPx = function (f35, w, h) { return f35 * Math.hypot(w, h) / 43.27; };
+
+/* ---------- segmentation ---------- */
+function ycc(r, g, b) {
+  return [0.299 * r + 0.587 * g + 0.114 * b,
+    128 - 0.168736 * r - 0.331264 * g + 0.5 * b,
+    128 + 0.5 * r - 0.418688 * g - 0.081312 * b];
+}
+function kmeans(S, K, it) {
+  const n = S.length / 3; if (n === 0) return [[255, 128, 128]];
+  K = Math.min(K, n);
+  const C = [[S[0], S[1], S[2]]];
+  const dmin = new Float32Array(n).fill(1e30);
+  while (C.length < K) {
+    const c = C[C.length - 1]; let best = -1, bi = 0;
+    for (let i = 0; i < n; i++) {
+      const a = S[i * 3] - c[0], b = S[i * 3 + 1] - c[1], e = S[i * 3 + 2] - c[2];
+      const d = a * a + b * b + e * e; if (d < dmin[i]) dmin[i] = d;
+      if (dmin[i] > best) { best = dmin[i]; bi = i; }
+    }
+    if (best < 4) break;
+    C.push([S[bi * 3], S[bi * 3 + 1], S[bi * 3 + 2]]);
+  }
+  for (let t = 0; t < it; t++) {
+    const acc = C.map(() => [0, 0, 0, 0]);
+    for (let i = 0; i < n; i++) {
+      let bk = 0, bd = 1e30;
+      for (let k = 0; k < C.length; k++) {
+        const a = S[i * 3] - C[k][0], b = S[i * 3 + 1] - C[k][1], e = S[i * 3 + 2] - C[k][2];
+        const d = a * a + b * b + e * e; if (d < bd) { bd = d; bk = k; }
+      }
+      const q = acc[bk]; q[0] += S[i * 3]; q[1] += S[i * 3 + 1]; q[2] += S[i * 3 + 2]; q[3]++;
+    }
+    for (let k = 0; k < C.length; k++) if (acc[k][3]) C[k] = [acc[k][0] / acc[k][3], acc[k][1] / acc[k][3], acc[k][2] / acc[k][3]];
+  }
+  return C;
+}
+function morph(m, w, h, rad, dilate) {
+  // separable square min/max filter
+  const tmp = new Uint8Array(m.length), out = new Uint8Array(m.length);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    let v = dilate ? 0 : 1;
+    for (let dx = -rad; dx <= rad; dx++) {
+      const xx = x + dx; const s = (xx < 0 || xx >= w) ? 0 : m[y * w + xx];
+      if (dilate) { if (s) { v = 1; break; } } else if (!s) { v = 0; break; }
+    }
+    tmp[y * w + x] = v;
+  }
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    let v = dilate ? 0 : 1;
+    for (let dy = -rad; dy <= rad; dy++) {
+      const yy = y + dy; const s = (yy < 0 || yy >= h) ? 0 : tmp[yy * w + x];
+      if (dilate) { if (s) { v = 1; break; } } else if (!s) { v = 0; break; }
+    }
+    out[y * w + x] = v;
+  }
+  return out;
+}
+H.dilate = (m, w, h, r) => r > 0 ? morph(m, w, h, r, true) : m;
+function largest2D(m, w, h) {
+  const lab = new Int32Array(m.length), st = new Int32Array(m.length);
+  let cur = 0, best = 0, bestL = 0;
+  for (let i = 0; i < m.length; i++) {
+    if (!m[i] || lab[i]) continue;
+    cur++; let sp = 0, cnt = 0; st[sp++] = i; lab[i] = cur;
+    while (sp) {
+      const p = st[--sp]; cnt++; const x = p % w, y = (p - x) / w;
+      if (x > 0 && m[p - 1] && !lab[p - 1]) { lab[p - 1] = cur; st[sp++] = p - 1; }
+      if (x < w - 1 && m[p + 1] && !lab[p + 1]) { lab[p + 1] = cur; st[sp++] = p + 1; }
+      if (y > 0 && m[p - w] && !lab[p - w]) { lab[p - w] = cur; st[sp++] = p - w; }
+      if (y < h - 1 && m[p + w] && !lab[p + w]) { lab[p + w] = cur; st[sp++] = p + w; }
+    }
+    if (cnt > best) { best = cnt; bestL = cur; }
+  }
+  const out = new Uint8Array(m.length);
+  if (bestL) for (let i = 0; i < m.length; i++) out[i] = lab[i] === bestL ? 1 : 0;
+  return out;
+}
+function fillHoles(m, w, h) {
+  const seen = new Uint8Array(m.length), st = new Int32Array(m.length); let sp = 0;
+  const push = p => { if (!m[p] && !seen[p]) { seen[p] = 1; st[sp++] = p; } };
+  for (let x = 0; x < w; x++) { push(x); push((h - 1) * w + x); }
+  for (let y = 0; y < h; y++) { push(y * w); push(y * w + w - 1); }
+  while (sp) {
+    const p = st[--sp]; const x = p % w, y = (p - x) / w;
+    if (x > 0) push(p - 1); if (x < w - 1) push(p + 1); if (y > 0) push(p - w); if (y < h - 1) push(p + w);
+  }
+  const out = new Uint8Array(m.length);
+  for (let i = 0; i < m.length; i++) out[i] = (m[i] || !seen[i]) ? 1 : 0;
+  return out;
+}
+/* opt.thr: colour distance threshold; opt.lumaW: weight of brightness differences (low = ignore shadows) */
+H.segment = function (img, opt) {
+  opt = opt || {};
+  const w = img.width, h = img.height, D = img.data, n = w * h;
+  const thr = opt.thr == null ? 30 : opt.thr, lw = opt.lumaW == null ? 0.35 : opt.lumaW;
+  const band = Math.max(2, Math.round(Math.min(w, h) * 0.03));
+  const bandCount = n - (w - 2 * band) * (h - 2 * band);
+  const step = Math.max(1, Math.floor(bandCount / 3000));
+  const S = []; let c = 0;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    if (x >= band && x < w - band && y >= band && y < h - band) continue;
+    if ((c++ % step) !== 0) continue;
+    const i = (y * w + x) * 4; const q = ycc(D[i], D[i + 1], D[i + 2]);
+    S.push(q[0], q[1], q[2]);
+  }
+  const C = kmeans(S, 4, 8);
+  const t2 = thr * thr; let m = new Uint8Array(n);
+  for (let p = 0; p < n; p++) {
+    const i = p * 4; const r = D[i], g = D[i + 1], b = D[i + 2];
+    const Y = 0.299 * r + 0.587 * g + 0.114 * b, U = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b, V = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
+    let bd = 1e30;
+    for (let k = 0; k < C.length; k++) {
+      const a = Y - C[k][0], u = U - C[k][1], v = V - C[k][2];
+      const d = lw * a * a + u * u + v * v; if (d < bd) bd = d;
+    }
+    m[p] = bd > t2 ? 1 : 0;
+  }
+  const r = Math.max(1, Math.round(Math.min(w, h) / 320));
+  m = morph(morph(m, w, h, r, false), w, h, r, true); // open
+  m = largest2D(m, w, h);
+  m = fillHoles(m, w, h);
+  let x0 = w, y0 = h, x1 = -1, y1 = -1, area = 0;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (m[y * w + x]) {
+    area++; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+  }
+  const touches = area > 0 && (x0 <= 1 || y0 <= 1 || x1 >= w - 2 || y1 >= h - 2);
+  return { mask: m, w, h, area, bbox: area ? [x0, y0, x1, y1] : null, touches };
+};
+
+/* ---------- carving ---------- */
+function carve(masks, cams, N, R, allowMiss) {
+  const occ = new Uint8Array(N * N * N), vs = 2 * R / N, nc = cams.length;
+  const P = cams.map(c => [c.C[0], c.C[1], c.C[2], c.r[0], c.r[1], c.r[2], c.d[0], c.d[1], c.d[2], c.k[0], c.k[1], c.k[2], c.f, c.cx, c.cy, c.w, c.h]);
+  let idx = 0;
+  for (let z = 0; z < N; z++) {
+    const Z = -R + (z + 0.5) * vs;
+    for (let y = 0; y < N; y++) {
+      const Y = -R + (y + 0.5) * vs;
+      for (let x = 0; x < N; x++, idx++) {
+        const X = -R + (x + 0.5) * vs; let miss = 0;
+        for (let ci = 0; ci < nc; ci++) {
+          const p = P[ci];
+          const dx = X - p[0], dy = Y - p[1], dz = Z - p[2];
+          const pz = dx * p[9] + dy * p[10] + dz * p[11]; if (pz <= 1e-6) continue;
+          const u = p[13] + p[12] * (dx * p[3] + dy * p[4] + dz * p[5]) / pz;
+          const v = p[14] + p[12] * (dx * p[6] + dy * p[7] + dz * p[8]) / pz;
+          if (u < 0 || v < 0 || u >= p[15] || v >= p[16]) continue;
+          if (!masks[ci][(v | 0) * p[15] + (u | 0)]) { if (++miss > allowMiss) break; }
+        }
+        occ[idx] = miss > allowMiss ? 0 : 1;
+      }
+    }
+  }
+  return occ;
+}
+H.carve = carve;
+function largest3D(occ, N) {
+  const lab = new Int32Array(occ.length), st = new Int32Array(occ.length);
+  let cur = 0, best = 0, bestL = 0; const NN = N * N;
+  for (let i = 0; i < occ.length; i++) {
+    if (!occ[i] || lab[i]) continue;
+    cur++; let sp = 0, cnt = 0; st[sp++] = i; lab[i] = cur;
+    while (sp) {
+      const p = st[--sp]; cnt++;
+      const x = p % N, y = ((p - x) / N) % N, z = (p - x - y * N) / NN;
+      const nb = [x > 0 ? p - 1 : -1, x < N - 1 ? p + 1 : -1, y > 0 ? p - N : -1, y < N - 1 ? p + N : -1, z > 0 ? p - NN : -1, z < N - 1 ? p + NN : -1];
+      for (const q of nb) if (q >= 0 && occ[q] && !lab[q]) { lab[q] = cur; st[sp++] = q; }
+    }
+    if (cnt > best) { best = cnt; bestL = cur; }
+  }
+  const out = new Uint8Array(occ.length);
+  for (let i = 0; i < occ.length; i++) out[i] = lab[i] === bestL ? 1 : 0;
+  return { occ: out, count: best };
+}
+/* how well the carved hull re-covers each silhouette (1 = perfect consistency) */
+function coverage(occ, N, R, masks, cams) {
+  const vs = 2 * R / N, NN = N * N; let tot = 0;
+  for (let ci = 0; ci < cams.length; ci++) {
+    const c = cams[ci], s = 4, w4 = Math.ceil(c.w / s), h4 = Math.ceil(c.h / s);
+    const buf = new Uint8Array(w4 * h4), m = masks[ci];
+    for (let z = 0; z < N; z++) for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const i = z * NN + y * N + x; if (!occ[i]) continue;
+      if (x > 0 && x < N - 1 && y > 0 && y < N - 1 && z > 0 && z < N - 1 &&
+        occ[i - 1] && occ[i + 1] && occ[i - N] && occ[i + N] && occ[i - NN] && occ[i + NN]) continue;
+      const X = -R + (x + .5) * vs, Y = -R + (y + .5) * vs, Z = -R + (z + .5) * vs;
+      const dx = X - c.C[0], dy = Y - c.C[1], dz = Z - c.C[2];
+      const pz = dx * c.k[0] + dy * c.k[1] + dz * c.k[2]; if (pz <= 0) continue;
+      const u = (c.cx + c.f * (dx * c.r[0] + dy * c.r[1] + dz * c.r[2]) / pz) / s;
+      const v = (c.cy + c.f * (dx * c.d[0] + dy * c.d[1] + dz * c.d[2]) / pz) / s;
+      const rr = Math.max(0, Math.round(0.5 * vs * c.f / pz / s - 0.5));
+      const u0 = Math.max(0, Math.floor(u - rr)), u1 = Math.min(w4 - 1, Math.floor(u + rr));
+      const v0 = Math.max(0, Math.floor(v - rr)), v1 = Math.min(h4 - 1, Math.floor(v + rr));
+      for (let yy = v0; yy <= v1; yy++) for (let xx = u0; xx <= u1; xx++) buf[yy * w4 + xx] = 1;
+    }
+    let uni = 0, hit = 0;
+    for (let yy = 0; yy < h4; yy++) for (let xx = 0; xx < w4; xx++) {
+      const mx = Math.min(c.w - 1, xx * s + 2), my = Math.min(c.h - 1, yy * s + 2);
+      const a = m[my * c.w + mx], b = buf[yy * w4 + xx];
+      if (a || b) { uni++; if (a && b) hit++; }
+    }
+    tot += uni ? hit / uni : 0;
+  }
+  return tot / cams.length;
+}
+
+/* fraction of silhouette pixels whose camera ray hits the carved hull (1 = every view fully explained) */
+function rayCoverage(occ, N, R, masks, cams, dist) {
+  const vs = 2 * R / N, NN = N * N; let tot = 0;
+  for (let ci = 0; ci < cams.length; ci++) {
+    const c = cams[ci], m = masks[ci], w = c.w, h = c.h;
+    let area = 0; for (let i = 0; i < m.length; i += 7) area += m[i];
+    const stride = Math.max(1, Math.round(Math.sqrt(area * 7 / 1600)));
+    let mk = 0, hit = 0;
+    for (let y = stride >> 1; y < h; y += stride) for (let x = stride >> 1; x < w; x += stride) {
+      if (!m[y * w + x]) continue; mk++;
+      const a = (x + .5 - c.cx) / c.f, b = (y + .5 - c.cy) / c.f;
+      let dx = c.r[0] * a + c.d[0] * b + c.k[0], dy = c.r[1] * a + c.d[1] * b + c.k[1], dz = c.r[2] * a + c.d[2] * b + c.k[2];
+      const l = Math.hypot(dx, dy, dz); dx /= l; dy /= l; dz /= l;
+      for (let t = dist - R * 1.8, t1 = dist + R * 1.8; t < t1; t += vs * 0.5) {
+        const ix = Math.floor((c.C[0] + dx * t + R) / vs), iy = Math.floor((c.C[1] + dy * t + R) / vs), iz = Math.floor((c.C[2] + dz * t + R) / vs);
+        if (ix < 0 || iy < 0 || iz < 0 || ix >= N || iy >= N || iz >= N) continue;
+        if (occ[iz * NN + iy * N + ix]) { hit++; break; }
+      }
+    }
+    tot += mk ? hit / mk : 0;
+  }
+  return tot / cams.length;
+}
+
+/* ---------- field + surface nets ---------- */
+function makeField(occ, N, pad, passes) {
+  const M = N + 2 * pad, MM = M * M; let F = new Float32Array(M * MM);
+  for (let z = 0; z < N; z++) for (let y = 0; y < N; y++) for (let x = 0; x < N; x++)
+    F[(z + pad) * MM + (y + pad) * M + x + pad] = occ[z * N * N + y * N + x];
+  const T = new Float32Array(F.length);
+  for (let p = 0; p < passes; p++) {
+    for (const [st, a] of [[1, 0], [M, 1], [MM, 2]]) {
+      const src = F, dst = T;
+      for (let i = 0; i < F.length; i++) {
+        const x = i % M, y = ((i - x) / M) % M, z = (i - x - y * M) / MM;
+        const c = a === 0 ? x : a === 1 ? y : z;
+        const lo = c > 0 ? src[i - st] : 0, hi = c < M - 1 ? src[i + st] : 0;
+        dst[i] = 0.25 * lo + 0.5 * src[i] + 0.25 * hi;
+      }
+      F.set(T);
+    }
+  }
+  return { F, M };
+}
+const EDGES = [[0, 1], [2, 3], [4, 5], [6, 7], [0, 2], [1, 3], [4, 6], [5, 7], [0, 4], [1, 5], [2, 6], [3, 7]];
+H.surfaceNets = function (F, M, iso) {
+  const MM = M * M, cell = new Int32Array(M * MM).fill(-1);
+  const pos = [], nrm = [], v = new Float32Array(8);
+  for (let z = 0; z < M - 1; z++) for (let y = 0; y < M - 1; y++) for (let x = 0; x < M - 1; x++) {
+    let mask = 0;
+    for (let c = 0; c < 8; c++) {
+      const val = F[(z + (c >> 2)) * MM + (y + ((c >> 1) & 1)) * M + x + (c & 1)];
+      v[c] = val; if (val > iso) mask |= 1 << c;
+    }
+    if (mask === 0 || mask === 255) continue;
+    let sx = 0, sy = 0, sz = 0, cnt = 0;
+    for (const [a, b] of EDGES) {
+      if (((mask >> a) & 1) === ((mask >> b) & 1)) continue;
+      const t = (iso - v[a]) / (v[b] - v[a]);
+      sx += (a & 1) + t * ((b & 1) - (a & 1));
+      sy += ((a >> 1) & 1) + t * (((b >> 1) & 1) - ((a >> 1) & 1));
+      sz += (a >> 2) + t * ((b >> 2) - (a >> 2)); cnt++;
+    }
+    const gx = (v[1] - v[0] + v[3] - v[2] + v[5] - v[4] + v[7] - v[6]);
+    const gy = (v[2] - v[0] + v[3] - v[1] + v[6] - v[4] + v[7] - v[5]);
+    const gz = (v[4] - v[0] + v[5] - v[1] + v[6] - v[2] + v[7] - v[3]);
+    const n = norm([-gx, -gy, -gz]);
+    cell[z * MM + y * M + x] = pos.length / 3;
+    pos.push(x + sx / cnt, y + sy / cnt, z + sz / cnt); nrm.push(n[0], n[1], n[2]);
+  }
+  const idx = [];
+  const quad = (a, b, c, d) => {
+    if (a < 0 || b < 0 || c < 0 || d < 0) return;
+    // orient by vertex normals
+    const ax = pos[a * 3], ay = pos[a * 3 + 1], az = pos[a * 3 + 2];
+    const e1 = [pos[b * 3] - ax, pos[b * 3 + 1] - ay, pos[b * 3 + 2] - az];
+    const e2 = [pos[c * 3] - ax, pos[c * 3 + 1] - ay, pos[c * 3 + 2] - az];
+    const tn = cross(e1, e2);
+    const sn = [nrm[a * 3] + nrm[b * 3] + nrm[c * 3] + nrm[d * 3], nrm[a * 3 + 1] + nrm[b * 3 + 1] + nrm[c * 3 + 1] + nrm[d * 3 + 1], nrm[a * 3 + 2] + nrm[b * 3 + 2] + nrm[c * 3 + 2] + nrm[d * 3 + 2]];
+    if (tn[0] * sn[0] + tn[1] * sn[1] + tn[2] * sn[2] >= 0) idx.push(a, b, c, a, c, d);
+    else idx.push(a, c, b, a, d, c);
+  };
+  const C = (x, y, z) => cell[z * MM + y * M + x];
+  for (let z = 1; z < M - 1; z++) for (let y = 1; y < M - 1; y++) for (let x = 1; x < M - 1; x++) {
+    const f0 = F[z * MM + y * M + x] > iso;
+    if (f0 !== (F[z * MM + y * M + x + 1] > iso)) quad(C(x, y - 1, z - 1), C(x, y, z - 1), C(x, y, z), C(x, y - 1, z));
+    if (f0 !== (F[z * MM + (y + 1) * M + x] > iso)) quad(C(x - 1, y, z - 1), C(x, y, z - 1), C(x, y, z), C(x - 1, y, z));
+    if (f0 !== (F[(z + 1) * MM + y * M + x] > iso)) quad(C(x - 1, y - 1, z), C(x, y - 1, z), C(x, y, z), C(x - 1, y, z));
+  }
+  return { pos: new Float32Array(pos), nrm: new Float32Array(nrm), idx: new Uint32Array(idx) };
+};
+
+/* Taubin smoothing (shrink-free) on world positions, then area-weighted face normals */
+H.smoothMesh = function (mesh, iters) {
+  const P = mesh.wpos, nv = P.length / 3, I = mesh.idx;
+  const deg = new Uint32Array(nv + 1);
+  for (let t = 0; t < I.length; t += 3) for (let e = 0; e < 3; e++) { deg[I[t + e]] += 2; }
+  const start = new Uint32Array(nv + 1); for (let i = 0; i < nv; i++) start[i + 1] = start[i] + deg[i];
+  const nb = new Uint32Array(start[nv]), fill = start.slice(0, nv);
+  for (let t = 0; t < I.length; t += 3) for (let e = 0; e < 3; e++) {
+    const a = I[t + e], b = I[t + (e + 1) % 3], c = I[t + (e + 2) % 3];
+    nb[fill[a]++] = b; nb[fill[a]++] = c;
+  }
+  const T = new Float32Array(P.length);
+  const pass = lam => {
+    for (let i = 0; i < nv; i++) {
+      const s0 = start[i], s1 = start[i + 1], k = s1 - s0; if (!k) { T[i * 3] = P[i * 3]; T[i * 3 + 1] = P[i * 3 + 1]; T[i * 3 + 2] = P[i * 3 + 2]; continue; }
+      let x = 0, y = 0, z = 0; for (let j = s0; j < s1; j++) { const q = nb[j] * 3; x += P[q]; y += P[q + 1]; z += P[q + 2]; }
+      T[i * 3] = P[i * 3] + lam * (x / k - P[i * 3]); T[i * 3 + 1] = P[i * 3 + 1] + lam * (y / k - P[i * 3 + 1]); T[i * 3 + 2] = P[i * 3 + 2] + lam * (z / k - P[i * 3 + 2]);
+    }
+    P.set(T);
+  };
+  for (let it = 0; it < iters; it++) { pass(0.5); pass(-0.53); }
+  const Nn = new Float32Array(P.length);
+  for (let t = 0; t < I.length; t += 3) {
+    const a = I[t] * 3, b = I[t + 1] * 3, c = I[t + 2] * 3;
+    const n = cross([P[b] - P[a], P[b + 1] - P[a + 1], P[b + 2] - P[a + 2]], [P[c] - P[a], P[c + 1] - P[a + 1], P[c + 2] - P[a + 2]]);
+    for (const q of [a, b, c]) { Nn[q] += n[0]; Nn[q + 1] += n[1]; Nn[q + 2] += n[2]; }
+  }
+  for (let i = 0; i < nv; i++) { const n = norm([Nn[i * 3], Nn[i * 3 + 1], Nn[i * 3 + 2]]); Nn[i * 3] = n[0]; Nn[i * 3 + 1] = n[1]; Nn[i * 3 + 2] = n[2]; }
+  mesh.nrm = Nn;
+};
+
+/* ---------- colour ---------- */
+function sampleRGB(img, u, v, out) {
+  const w = img.width, h = img.height, D = img.data;
+  u = Math.min(w - 1.001, Math.max(0, u - 0.5)); v = Math.min(h - 1.001, Math.max(0, v - 0.5));
+  const x = u | 0, y = v | 0, fx = u - x, fy = v - y;
+  const i00 = (y * w + x) * 4, i10 = i00 + 4, i01 = i00 + w * 4, i11 = i01 + 4;
+  for (let c = 0; c < 3; c++)
+    out[c] = (D[i00 + c] * (1 - fx) + D[i10 + c] * fx) * (1 - fy) + (D[i01 + c] * (1 - fx) + D[i11 + c] * fx) * fy;
+}
+async function colorize(mesh, occ, N, R, imgs, cams, progress) {
+  const nv = mesh.pos.length / 3, col = new Uint8Array(nv * 3), vs = 2 * R / N, NN = N * N;
+  const rgb = [0, 0, 0], cand = [];
+  const occAt = (X, Y, Z) => {
+    const x = Math.floor((X + R) / vs), y = Math.floor((Y + R) / vs), z = Math.floor((Z + R) / vs);
+    if (x < 0 || y < 0 || z < 0 || x >= N || y >= N || z >= N) return -1;
+    return occ[z * NN + y * N + x];
+  };
+  for (let i = 0; i < nv; i++) {
+    if ((i & 4095) === 0) { if (progress) progress(i / nv); await tick(); }
+    const X = mesh.wpos[i * 3], Y = mesh.wpos[i * 3 + 1], Z = mesh.wpos[i * 3 + 2];
+    const nx = mesh.nrm[i * 3], ny = mesh.nrm[i * 3 + 1], nz = mesh.nrm[i * 3 + 2];
+    cand.length = 0;
+    for (let ci = 0; ci < cams.length; ci++) {
+      const c = cams[ci]; let dx = c.C[0] - X, dy = c.C[1] - Y, dz = c.C[2] - Z;
+      const l = Math.hypot(dx, dy, dz); dx /= l; dy /= l; dz /= l;
+      const w = nx * dx + ny * dy + nz * dz;
+      if (w > 0.1) cand.push([w, ci, dx, dy, dz]);
+    }
+    cand.sort((a, b) => b[0] - a[0]);
+    let sr = 0, sg = 0, sb = 0, sw = 0, used = 0;
+    for (const [w, ci, dx, dy, dz] of cand) {
+      // visibility: march toward the camera through the hull
+      let px = X + nx * vs * 1.2, py = Y + ny * vs * 1.2, pz = Z + nz * vs * 1.2, blocked = false;
+      for (let s = 0; s < 3 * N; s++) {
+        px += dx * vs * 0.7; py += dy * vs * 0.7; pz += dz * vs * 0.7;
+        const o = occAt(px, py, pz); if (o < 0) break; if (o === 1) { blocked = true; break; }
+      }
+      if (blocked) continue;
+      const c = cams[ci];
+      const ddx = X - c.C[0], ddy = Y - c.C[1], ddz = Z - c.C[2];
+      const q = ddx * c.k[0] + ddy * c.k[1] + ddz * c.k[2];
+      const u = c.cx + c.f * (ddx * c.r[0] + ddy * c.r[1] + ddz * c.r[2]) / q;
+      const v = c.cy + c.f * (ddx * c.d[0] + ddy * c.d[1] + ddz * c.d[2]) / q;
+      sampleRGB(imgs[ci], u, v, rgb);
+      const wt = w * w * w * w;
+      sr += rgb[0] * wt; sg += rgb[1] * wt; sb += rgb[2] * wt; sw += wt;
+      if (++used >= 3) break;
+    }
+    if (sw > 0) { col[i * 3] = sr / sw; col[i * 3 + 1] = sg / sw; col[i * 3 + 2] = sb / sw; }
+    else if (cand.length) {
+      const c = cams[cand[0][1]], ddx = X - c.C[0], ddy = Y - c.C[1], ddz = Z - c.C[2];
+      const q = ddx * c.k[0] + ddy * c.k[1] + ddz * c.k[2];
+      sampleRGB(imgs[cand[0][1]], c.cx + c.f * (ddx * c.r[0] + ddy * c.r[1] + ddz * c.r[2]) / q, c.cy + c.f * (ddx * c.d[0] + ddy * c.d[1] + ddz * c.d[2]) / q, rgb);
+      col[i * 3] = rgb[0]; col[i * 3 + 1] = rgb[1]; col[i * 3 + 2] = rgb[2];
+    } else { col[i * 3] = col[i * 3 + 1] = col[i * 3 + 2] = 150; }
+  }
+  return col;
+}
+
+/* ---------- full pipeline ----------
+   views: [{img:{width,height,data}, mask:Uint8Array, bbox, f35}]
+   opt: {N, el (null=auto), dir (0=auto,1,-1), center, allowMiss, tol, arc} */
+H.reconstruct = async function (views, opt, progress) {
+  opt = opt || {};
+  const say = (t, p) => progress && progress(t, p);
+  const n = views.length, dist = 3, arc = opt.arc || 360;
+  const masks = views.map(vw => H.dilate(vw.mask, vw.img.width, vw.img.height, opt.tol == null ? 1 : opt.tol));
+  // centering: 'global' = object axis at a fixed spot in every photo (tripod / steady hand),
+  // 'each' = re-centre every photo on its silhouette (hand-held, aimed at the object), 'off' = image centre
+  const center = opt.center || 'global';
+  const med = a => { const b = a.slice().sort((x, y) => x - y); return b.length ? b[b.length >> 1] : 0; };
+  const rel = views.filter(v => v.bbox).map(v => [(v.bbox[0] + v.bbox[2] + 1) / 2 / v.img.width, (v.bbox[1] + v.bbox[3] + 1) / 2 / v.img.height]);
+  const gcx = med(rel.map(r => r[0])), gcy = med(rel.map(r => r[1]));
+  const intr = views.map(vw => {
+    const w = vw.img.width, h = vw.img.height, f = H.focalPx(vw.f35 || 26, w, h);
+    let cx = w / 2, cy = h / 2;
+    if (center === 'global' && rel.length) { cx = gcx * w; cy = gcy * h; }
+    else if (center === 'each' && vw.bbox) { cx = (vw.bbox[0] + vw.bbox[2] + 1) / 2; cy = (vw.bbox[1] + vw.bbox[3] + 1) / 2; }
+    return { w, h, f, cx, cy };
+  });
+  // bounding radius from silhouette extents
+  let maxAng = 0;
+  views.forEach((vw, i) => {
+    const b = vw.bbox, I = intr[i]; if (!b) return;
+    for (const [x, y] of [[b[0], b[1]], [b[2] + 1, b[1]], [b[0], b[3] + 1], [b[2] + 1, b[3] + 1]])
+      maxAng = Math.max(maxAng, Math.hypot(x - I.cx, y - I.cy) / I.f);
+  });
+  const R = Math.min(dist * 0.8, Math.tan(Math.atan(maxAng)) * dist * 1.15);
+  const step = arc / (arc >= 360 ? n : Math.max(1, n - 1));
+  const camsFor = (el, dir) => intr.map((I, i) => H.makeCamera(dir * i * step, el, dist, I.f, I.w, I.h, I.cx, I.cy));
+  const allowMiss = opt.allowMiss == null ? (n >= 12 ? 1 : 0) : opt.allowMiss;
+
+  let el = opt.el, dir = opt.dir || 0, calib = null;
+  if (el == null || !dir) {
+    say('Figuring out camera angle…', 0.02); await tick();
+    const raw = views.map(v => v.mask), CN = 48, tries = [], memo = {};
+    const score = async (e, d) => {
+      const key = d + ':' + e; if (memo[key] != null) return memo[key];
+      const cams = camsFor(e, d), occ = carve(masks, cams, CN, R, 0);
+      const s = rayCoverage(occ, CN, R, raw, cams, dist);
+      tries.push([d, e, s]); memo[key] = s; await tick(); return s;
+    };
+    const dirs = dir ? [dir] : [1, -1];
+    const coarse = el != null ? [el] : [0, 12, 24, 36, 48, 60];
+    let best = { s: -1 }, k = 0;
+    for (const d of dirs) for (const e of coarse) {
+      const s = await score(e, d); if (s > best.s) best = { s, d, e };
+      say('Figuring out camera angle…', 0.02 + 0.15 * (++k) / (dirs.length * coarse.length));
+    }
+    if (el == null) {
+      // refine: 6° then 3° steps, then a parabola through the top three
+      for (const stp of [6, 3]) {
+        for (const e of [best.e - stp, best.e + stp]) {
+          if (e < -10 || e > 75) continue;
+          const s = await score(e, best.d); if (s > best.s) best = { s, d: best.d, e };
+        }
+      }
+      const sl = memo[best.d + ':' + (best.e - 3)], sr = memo[best.d + ':' + (best.e + 3)];
+      if (sl != null && sr != null) {
+        const den = sl - 2 * best.s + sr;
+        if (den < 0) best.e += Math.max(-1.5, Math.min(1.5, 1.5 * (sl - sr) / den));
+      }
+      say('Figuring out camera angle…', 0.24);
+    }
+    el = best.e; dir = best.d; calib = { tries, score: best.s };
+  }
+  const N = opt.N || 80;
+  const cams = camsFor(el, dir);
+  say('Carving the shape…', 0.25); await tick();
+  let occ = carve(masks, cams, N, R, allowMiss);
+  const lc = largest3D(occ, N); occ = lc.occ;
+  if (lc.count < 10) throw new Error('Nothing left after carving — check the masks (step 2) and that the photos go around the object in order.');
+  say('Checking fit…', 0.45); await tick();
+  const cov = rayCoverage(occ, N, R, views.map(v => v.mask), cams, dist);
+  say('Building the surface…', 0.5); await tick();
+  const pad = 2, fld = makeField(occ, N, pad, 1);
+  const mesh = H.surfaceNets(fld.F, fld.M, 0.5);
+  const vs = 2 * R / N, nv = mesh.pos.length / 3;
+  mesh.wpos = new Float32Array(nv * 3);
+  for (let i = 0; i < nv * 3; i++) mesh.wpos[i] = -R + (mesh.pos[i] - pad + 0.5) * vs;
+  H.smoothMesh(mesh, opt.smooth == null ? 4 : opt.smooth);
+  say('Painting colours from photos…', 0.6); await tick();
+  mesh.col = await colorize(mesh, occ, N, R, views.map(v => v.img), cams, p => say('Painting colours from photos…', 0.6 + 0.38 * p));
+  say('Done', 1);
+  return { mesh, occ, N, R, el, dir, cams, coverage: cov, calib, allowMiss };
+};
+
+/* ---------- exporters ---------- */
+function finalGeometry(mesh, heightUnits) {
+  const nv = mesh.wpos.length / 3; let y0 = 1e9, y1 = -1e9, x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9;
+  for (let i = 0; i < nv; i++) {
+    const x = mesh.wpos[i * 3], y = mesh.wpos[i * 3 + 1], z = mesh.wpos[i * 3 + 2];
+    if (y < y0) y0 = y; if (y > y1) y1 = y; if (x < x0) x0 = x; if (x > x1) x1 = x; if (z < z0) z0 = z; if (z > z1) z1 = z;
+  }
+  const s = heightUnits / Math.max(1e-9, y1 - y0), cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+  const P = new Float32Array(nv * 3);
+  for (let i = 0; i < nv; i++) { P[i * 3] = (mesh.wpos[i * 3] - cx) * s; P[i * 3 + 1] = (mesh.wpos[i * 3 + 1] - y0) * s; P[i * 3 + 2] = (mesh.wpos[i * 3 + 2] - cz) * s; }
+  return P;
+}
+H.toOBJ = function (mesh, height) {
+  const P = finalGeometry(mesh, height), nv = P.length / 3, out = ['# Hulma 3D — silhouette photogrammetry', '# units: cm (object height ' + height + ')', 'o hulma_model'];
+  for (let i = 0; i < nv; i++) out.push('v ' + P[i * 3].toFixed(4) + ' ' + P[i * 3 + 1].toFixed(4) + ' ' + P[i * 3 + 2].toFixed(4) + ' ' + (mesh.col[i * 3] / 255).toFixed(3) + ' ' + (mesh.col[i * 3 + 1] / 255).toFixed(3) + ' ' + (mesh.col[i * 3 + 2] / 255).toFixed(3));
+  for (let i = 0; i < nv; i++) out.push('vn ' + mesh.nrm[i * 3].toFixed(3) + ' ' + mesh.nrm[i * 3 + 1].toFixed(3) + ' ' + mesh.nrm[i * 3 + 2].toFixed(3));
+  const I = mesh.idx;
+  for (let t = 0; t < I.length; t += 3) { const a = I[t] + 1, b = I[t + 1] + 1, c = I[t + 2] + 1; out.push('f ' + a + '//' + a + ' ' + b + '//' + b + ' ' + c + '//' + c); }
+  return out.join('\n') + '\n';
+};
+H.toPLY = function (mesh, height) {
+  const P = finalGeometry(mesh, height), nv = P.length / 3, nf = mesh.idx.length / 3;
+  const head = 'ply\nformat binary_little_endian 1.0\ncomment Hulma 3D\nelement vertex ' + nv + '\nproperty float x\nproperty float y\nproperty float z\nproperty float nx\nproperty float ny\nproperty float nz\nproperty uchar red\nproperty uchar green\nproperty uchar blue\nelement face ' + nf + '\nproperty list uchar int vertex_indices\nend_header\n';
+  const hb = new TextEncoder().encode(head);
+  const buf = new ArrayBuffer(hb.length + nv * 27 + nf * 13), dv = new DataView(buf);
+  new Uint8Array(buf).set(hb); let o = hb.length;
+  for (let i = 0; i < nv; i++) {
+    for (let k = 0; k < 3; k++) { dv.setFloat32(o, P[i * 3 + k], true); o += 4; }
+    for (let k = 0; k < 3; k++) { dv.setFloat32(o, mesh.nrm[i * 3 + k], true); o += 4; }
+    for (let k = 0; k < 3; k++) dv.setUint8(o++, mesh.col[i * 3 + k]);
+  }
+  for (let t = 0; t < nf; t++) { dv.setUint8(o++, 3); for (let k = 0; k < 3; k++) { dv.setInt32(o, mesh.idx[t * 3 + k], true); o += 4; } }
+  return new Uint8Array(buf);
+};
+H.toSTL = function (mesh, height) {
+  const P = finalGeometry(mesh, height), I = mesh.idx, nf = I.length / 3;
+  const buf = new ArrayBuffer(84 + nf * 50), dv = new DataView(buf);
+  const hdr = 'Hulma 3D model'; for (let i = 0; i < hdr.length; i++) dv.setUint8(i, hdr.charCodeAt(i));
+  dv.setUint32(80, nf, true); let o = 84;
+  for (let t = 0; t < nf; t++) {
+    const a = I[t * 3] * 3, b = I[t * 3 + 1] * 3, c = I[t * 3 + 2] * 3;
+    const n = norm(cross([P[b] - P[a], P[b + 1] - P[a + 1], P[b + 2] - P[a + 2]], [P[c] - P[a], P[c + 1] - P[a + 1], P[c + 2] - P[a + 2]]));
+    for (const val of [n[0], n[1], n[2], P[a], P[a + 1], P[a + 2], P[b], P[b + 1], P[b + 2], P[c], P[c + 1], P[c + 2]]) { dv.setFloat32(o, val, true); o += 4; }
+    dv.setUint16(o, 0, true); o += 2;
+  }
+  return new Uint8Array(buf);
+};
+const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(u8) { let c = 0xFFFFFFFF; for (let i = 0; i < u8.length; i++) c = CRC[(c ^ u8[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+/* files: [{name, data: Uint8Array|string}] -> Uint8Array (stored, no compression) */
+H.zip = function (files) {
+  const enc = new TextEncoder(), parts = [], central = []; let off = 0;
+  for (const f of files) {
+    const data = typeof f.data === 'string' ? enc.encode(f.data) : f.data, name = enc.encode(f.name), crc = crc32(data);
+    const lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true); lh.setUint16(8, 0, true);
+    lh.setUint16(10, 0, true); lh.setUint16(12, 0x21, true); lh.setUint32(14, crc, true); lh.setUint32(18, data.length, true); lh.setUint32(22, data.length, true);
+    lh.setUint16(26, name.length, true); lh.setUint16(28, 0, true);
+    parts.push(new Uint8Array(lh.buffer), name, data);
+    const ch = new DataView(new ArrayBuffer(46));
+    ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0x0800, true); ch.setUint16(10, 0, true);
+    ch.setUint16(12, 0, true); ch.setUint16(14, 0x21, true); ch.setUint32(16, crc, true); ch.setUint32(20, data.length, true); ch.setUint32(24, data.length, true);
+    ch.setUint16(28, name.length, true); ch.setUint32(42, off, true);
+    central.push(new Uint8Array(ch.buffer), name);
+    off += 30 + name.length + data.length;
+  }
+  const csize = central.reduce((s, a) => s + a.length, 0);
+  const end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0, 0x06054b50, true); end.setUint16(8, files.length, true); end.setUint16(10, files.length, true);
+  end.setUint32(12, csize, true); end.setUint32(16, off, true);
+  const all = parts.concat(central, [new Uint8Array(end.buffer)]);
+  const out = new Uint8Array(all.reduce((s, a) => s + a.length, 0)); let o = 0;
+  for (const a of all) { out.set(a, o); o += a.length; }
+  return out;
+};
+
+/* mesh in final units: {pos, nrm, col, idx} */
+H.finalMesh = function (mesh, heightUnits) { return { pos: finalGeometry(mesh, heightUnits), nrm: mesh.nrm, col: mesh.col, idx: mesh.idx }; };
+
+/* binary glTF (.glb). g: {pos Float32Array, col Uint8Array rgb, nrm?, idx?}; points if no idx */
+H.toGLB = function (g) {
+  const nv = g.pos.length / 3, points = !g.idx;
+  const lo = [1e30, 1e30, 1e30], hi = [-1e30, -1e30, -1e30];
+  for (let i = 0; i < nv; i++) for (let k = 0; k < 3; k++) { const v = g.pos[i * 3 + k]; if (v < lo[k]) lo[k] = v; if (v > hi[k]) hi[k] = v; }
+  const rgba = new Uint8Array(nv * 4);
+  for (let i = 0; i < nv; i++) { rgba[i * 4] = g.col[i * 3]; rgba[i * 4 + 1] = g.col[i * 3 + 1]; rgba[i * 4 + 2] = g.col[i * 3 + 2]; rgba[i * 4 + 3] = 255; }
+  const chunks = [], views = [], acc = []; let off = 0;
+  const addView = (u8, target) => {
+    views.push(Object.assign({ buffer: 0, byteOffset: off, byteLength: u8.length }, target ? { target } : {}));
+    chunks.push(u8); off += u8.length; const pad = (4 - (off % 4)) % 4; if (pad) { chunks.push(new Uint8Array(pad)); off += pad; }
+    return views.length - 1;
+  };
+  const attrs = {};
+  const pos = new Float32Array(g.pos);
+  acc.push({ bufferView: addView(new Uint8Array(pos.buffer), 34962), componentType: 5126, count: nv, type: 'VEC3', min: lo, max: hi }); attrs.POSITION = 0;
+  if (g.nrm && !points) { const nr = new Float32Array(g.nrm); acc.push({ bufferView: addView(new Uint8Array(nr.buffer), 34962), componentType: 5126, count: nv, type: 'VEC3' }); attrs.NORMAL = acc.length - 1; }
+  acc.push({ bufferView: addView(rgba, 34962), componentType: 5121, normalized: true, count: nv, type: 'VEC4' }); attrs.COLOR_0 = acc.length - 1;
+  const prim = { attributes: attrs, mode: points ? 0 : 4, material: 0 };
+  if (!points) { const ix = new Uint32Array(g.idx); acc.push({ bufferView: addView(new Uint8Array(ix.buffer), 34963), componentType: 5125, count: ix.length, type: 'SCALAR' }); prim.indices = acc.length - 1; }
+  const mat = { pbrMetallicRoughness: { baseColorFactor: [1, 1, 1, 1], metallicFactor: 0, roughnessFactor: 1 }, doubleSided: true };
+  const json = { asset: { version: '2.0', generator: 'Hulma 3D' }, scene: 0, scenes: [{ nodes: [0] }], nodes: [{ mesh: 0, name: points ? 'hulma_place' : 'hulma_model' }], meshes: [{ primitives: [prim] }], materials: [mat], accessors: acc, bufferViews: views, buffers: [{ byteLength: off }] };
+  if (points) { mat.extensions = { KHR_materials_unlit: {} }; json.extensionsUsed = ['KHR_materials_unlit']; }
+  const js = new TextEncoder().encode(JSON.stringify(json)), jpad = (4 - js.length % 4) % 4;
+  const jb = new Uint8Array(js.length + jpad).fill(0x20); jb.set(js);
+  const total = 12 + 8 + jb.length + 8 + off, out = new Uint8Array(total), dv = new DataView(out.buffer);
+  dv.setUint32(0, 0x46546C67, true); dv.setUint32(4, 2, true); dv.setUint32(8, total, true);
+  dv.setUint32(12, jb.length, true); dv.setUint32(16, 0x4E4F534A, true); out.set(jb, 20);
+  let o = 20 + jb.length; dv.setUint32(o, off, true); dv.setUint32(o + 4, 0x004E4942, true); o += 8;
+  for (const c of chunks) { out.set(c, o); o += c.length; }
+  return out;
+};
+
+/* ---------- place scans: voxel-hashed coloured point cloud ---------- */
+H.PointCloud = function (vox, maxPoints) {
+  this.vox = vox; this.max = maxPoints || 1500000; this.map = new Map(); this.n = 0; this.cap = 65536;
+  this.pos = new Float32Array(this.cap * 3); this.col = new Uint8Array(this.cap * 3); this.cnt = new Uint8Array(this.cap);
+};
+H.PointCloud.prototype.add = function (x, y, z, r, g, b) {
+  const v = this.vox, ix = Math.floor(x / v), iy = Math.floor(y / v), iz = Math.floor(z / v);
+  if (ix < -65535 || ix > 65535 || iy < -65535 || iy > 65535 || iz < -65535 || iz > 65535) return false;
+  const key = ((ix + 65536) * 131072 + (iy + 65536)) * 131072 + (iz + 65536);
+  let i = this.map.get(key);
+  if (i === undefined) {
+    if (this.n >= this.max) return false;
+    if (this.n === this.cap) {
+      this.cap *= 2; const p = new Float32Array(this.cap * 3), c = new Uint8Array(this.cap * 3), k = new Uint8Array(this.cap);
+      p.set(this.pos); c.set(this.col); k.set(this.cnt); this.pos = p; this.col = c; this.cnt = k;
+    }
+    i = this.n++; this.map.set(key, i);
+    this.pos[i * 3] = x; this.pos[i * 3 + 1] = y; this.pos[i * 3 + 2] = z;
+    this.col[i * 3] = r; this.col[i * 3 + 1] = g; this.col[i * 3 + 2] = b; this.cnt[i] = 1;
+    return true;
+  }
+  const c = Math.min(this.cnt[i] + 1, 30), a = 1 / c;
+  this.pos[i * 3] += (x - this.pos[i * 3]) * a; this.pos[i * 3 + 1] += (y - this.pos[i * 3 + 1]) * a; this.pos[i * 3 + 2] += (z - this.pos[i * 3 + 2]) * a;
+  this.col[i * 3] += (r - this.col[i * 3]) * a; this.col[i * 3 + 1] += (g - this.col[i * 3 + 1]) * a; this.col[i * 3 + 2] += (b - this.col[i * 3 + 2]) * a;
+  this.cnt[i] = c; return false;
+};
+/* keep voxels seen at least minHits times (drops depth noise / flying pixels) */
+H.PointCloud.prototype.export = function (minHits) {
+  minHits = minHits || 1; let m = 0;
+  for (let i = 0; i < this.n; i++) if (this.cnt[i] >= minHits) m++;
+  const pos = new Float32Array(m * 3), col = new Uint8Array(m * 3); let j = 0;
+  for (let i = 0; i < this.n; i++) if (this.cnt[i] >= minHits) {
+    pos[j * 3] = this.pos[i * 3]; pos[j * 3 + 1] = this.pos[i * 3 + 1]; pos[j * 3 + 2] = this.pos[i * 3 + 2];
+    col[j * 3] = this.col[i * 3]; col[j * 3 + 1] = this.col[i * 3 + 1]; col[j * 3 + 2] = this.col[i * 3 + 2]; j++;
+  }
+  return { pos, col, vox: this.vox };
+};
+H.pointsToPLY = function (pos, col) {
+  const nv = pos.length / 3;
+  const hb = new TextEncoder().encode('ply\nformat binary_little_endian 1.0\ncomment Hulma 3D place scan, metres\nelement vertex ' + nv + '\nproperty float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\nend_header\n');
+  const buf = new ArrayBuffer(hb.length + nv * 15), dv = new DataView(buf); new Uint8Array(buf).set(hb); let o = hb.length;
+  for (let i = 0; i < nv; i++) {
+    dv.setFloat32(o, pos[i * 3], true); dv.setFloat32(o + 4, pos[i * 3 + 1], true); dv.setFloat32(o + 8, pos[i * 3 + 2], true);
+    dv.setUint8(o + 12, col[i * 3]); dv.setUint8(o + 13, col[i * 3 + 1]); dv.setUint8(o + 14, col[i * 3 + 2]); o += 15;
+  }
+  return new Uint8Array(buf);
+};
+/* synthetic room for the example place scan: floor, walls, table, sofa, cabinet */
+H.demoPlace = function (vox) {
+  vox = vox || 0.03;
+  const pc = new H.PointCloud(vox); let seed = 11; const rnd = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+  const W = 4.2, D = 3.4, Ht = 2.6, st = vox * 0.9;
+  const add = (x, y, z, c) => { const n = (rnd() - 0.5) * 14; pc.add(x + (rnd() - .5) * 0.006, y, z + (rnd() - .5) * 0.006, c[0] + n, c[1] + n, c[2] + n); };
+  for (let x = -W / 2; x < W / 2; x += st) for (let z = -D / 2; z < D / 2; z += st) { const pl = Math.floor((z + 9) / 0.18) % 3; add(x, 0, z, pl === 0 ? [168, 120, 78] : pl === 1 ? [150, 104, 66] : [176, 128, 86]); }
+  for (let x = -W / 2; x < W / 2; x += st) for (let y = 0; y < Ht; y += st) {
+    const win = x > 0.3 && x < 1.5 && y > 0.9 && y < 2.0;
+    add(x, y, -D / 2, win ? [150, 200, 235] : y < 0.12 ? [235, 235, 230] : [216, 226, 214]);
+  }
+  for (let z = -D / 2; z < D / 2; z += st) for (let y = 0; y < Ht; y += st) {
+    const door = z > 0.2 && z < 1.1 && y < 2.05;
+    add(-W / 2, y, z, door ? [122, 82, 52] : [216, 226, 214]);
+    add(W / 2, y, z, [236, 214, 170]);
+  }
+  const box = (x0, x1, y0, y1, z0, z1, c) => {
+    const d1 = c.map(v => v * 0.85), d2 = c.map(v => v * 0.78);
+    for (let x = x0; x <= x1; x += st) for (let z = z0; z <= z1; z += st) add(x, y1, z, c);
+    for (let x = x0; x <= x1; x += st) for (let y = y0; y <= y1; y += st) { add(x, y, z0, d1); add(x, y, z1, d1); }
+    for (let z = z0; z <= z1; z += st) for (let y = y0; y <= y1; y += st) { add(x0, y, z, d2); add(x1, y, z, d2); }
+  };
+  box(-0.6, 0.6, 0.7, 0.75, -0.4, 0.4, [120, 84, 56]);
+  for (const [x, z] of [[-0.55, -0.35], [0.5, -0.35], [-0.55, 0.3], [0.5, 0.3]]) box(x, x + 0.05, 0, 0.7, z, z + 0.05, [90, 62, 40]);
+  box(-1.9, -1.0, 0, 0.45, -1.6, -0.6, [70, 110, 170]); box(-2.05, -1.9, 0, 0.85, -1.6, -0.6, [60, 96, 150]);
+  box(1.3, 2.05, 0, 1.9, -1.65, -1.25, [240, 240, 236]);
+  box(-0.25, 0.25, 0.75, 1.0, -0.15, 0.15, [210, 60, 50]);
+  return pc.export(1);
+};
+
+/* ---------- EXIF: 35mm-equivalent focal length ---------- */
+H.readF35 = function (buf) {
+  try {
+    const dv = new DataView(buf); if (dv.getUint16(0) !== 0xFFD8) return null;
+    let o = 2;
+    while (o + 4 < dv.byteLength) {
+      const mk = dv.getUint16(o), len = dv.getUint16(o + 2);
+      if (mk === 0xFFE1 && dv.getUint32(o + 4) === 0x45786966) {
+        const t = o + 10, le = dv.getUint16(t) === 0x4949;
+        const u16 = p => dv.getUint16(t + p, le), u32 = p => dv.getUint32(t + p, le);
+        const ifd = (p, want) => { const n = u16(p); for (let i = 0; i < n; i++) { const e = p + 2 + i * 12; if (u16(e) === want) return e; } return -1; };
+        const e0 = ifd(u32(4), 0x8769); if (e0 < 0) return null;
+        const e1 = ifd(u32(e0 + 8), 0xA405); if (e1 < 0) return null;
+        const v = u16(e1 + 8); return v > 5 && v < 300 ? v : null;
+      }
+      if ((mk & 0xFF00) !== 0xFF00) break;
+      o += 2 + len;
+    }
+  } catch (e) { }
+  return null;
+};
+
+/* ---------- demo object (a little robot with a backpack and a ball) ---------- */
+const DEMO = [
+  { t: 'b', c: [0, -0.05, 0], h: [0.32, 0.36, 0.22], k: 'body' },
+  { t: 's', c: [0, 0.5, 0], r: 0.22, k: 'head' },
+  { t: 's', c: [0, 0.76, 0], r: 0.07, k: 'ant' },
+  { t: 'b', c: [-0.42, 0.0, 0], h: [0.08, 0.27, 0.09], k: 'arm' },
+  { t: 'b', c: [0.42, 0.0, 0.08], h: [0.08, 0.27, 0.09], k: 'arm' },
+  { t: 's', c: [0.44, -0.36, 0.14], r: 0.15, k: 'ball' },
+  { t: 'b', c: [-0.15, -0.62, 0], h: [0.1, 0.2, 0.12], k: 'leg' },
+  { t: 'b', c: [0.15, -0.62, 0], h: [0.1, 0.2, 0.12], k: 'leg' },
+  { t: 'b', c: [0, 0.0, -0.3], h: [0.22, 0.24, 0.09], k: 'pack' },
+];
+H.DEMO = DEMO;
+H.demoInside = function (X, Y, Z) {
+  for (const p of DEMO) {
+    if (p.t === 's') { if ((X - p.c[0]) ** 2 + (Y - p.c[1]) ** 2 + (Z - p.c[2]) ** 2 <= p.r * p.r) return true; }
+    else if (Math.abs(X - p.c[0]) <= p.h[0] && Math.abs(Y - p.c[1]) <= p.h[1] && Math.abs(Z - p.c[2]) <= p.h[2]) return true;
+  }
+  return false;
+};
+function demoColor(k, P, n) {
+  switch (k) {
+    case 'body': { const s = Math.floor((P[1] + 0.5) * 9) % 2; return s ? [222, 64, 52] : [246, 196, 52]; }
+    case 'head': {
+      const ex = Math.abs(Math.abs(P[0]) - 0.08) < 0.05 && Math.abs(P[1] - 0.54) < 0.05 && P[2] > 0.1;
+      if (ex) return [250, 250, 250];
+      const m = Math.abs(P[0]) < 0.09 && Math.abs(P[1] - 0.42) < 0.02 && P[2] > 0.1;
+      return m ? [30, 30, 40] : [56, 120, 220];
+    }
+    case 'ant': return [250, 210, 40];
+    case 'arm': return [70, 80, 96];
+    case 'leg': return [70, 80, 96];
+    case 'ball': { const s = (Math.floor(P[0] * 18) + Math.floor(P[1] * 18) + Math.floor(P[2] * 18)) & 1; return s ? [60, 190, 110] : [240, 240, 240]; }
+    case 'pack': { const s = (Math.floor(P[0] * 14) + Math.floor(P[1] * 14)) & 1; return s ? [150, 70, 200] : [100, 40, 150]; }
+  }
+  return [200, 200, 200];
+}
+H.renderDemo = function (w, h, az, el, dist, f35) {
+  const f = H.focalPx(f35, w, h), cam = H.makeCamera(az, el, dist, f, w, h);
+  const D = new Uint8ClampedArray(w * h * 4);
+  // light fixed relative to camera (object turns on a turntable)
+  const L = norm([-0.45 * cam.r[0] - 0.75 * cam.d[0] - 0.5 * cam.k[0], -0.45 * cam.r[1] - 0.75 * cam.d[1] - 0.5 * cam.k[1], -0.45 * cam.r[2] - 0.75 * cam.d[2] - 0.5 * cam.k[2]]);
+  let seed = (az * 1000 + 7) | 0; const rnd = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const a = (x + 0.5 - cam.cx) / f, b = (y + 0.5 - cam.cy) / f;
+    const dir = norm([cam.r[0] * a + cam.d[0] * b + cam.k[0], cam.r[1] * a + cam.d[1] * b + cam.k[1], cam.r[2] * a + cam.d[2] * b + cam.k[2]]);
+    const O = cam.C; let bt = 1e9, bn = null, bk = null;
+    for (const p of DEMO) {
+      if (p.t === 's') {
+        const oc = [O[0] - p.c[0], O[1] - p.c[1], O[2] - p.c[2]];
+        const B = oc[0] * dir[0] + oc[1] * dir[1] + oc[2] * dir[2], Cc = oc[0] ** 2 + oc[1] ** 2 + oc[2] ** 2 - p.r * p.r;
+        const disc = B * B - Cc; if (disc < 0) continue; const t = -B - Math.sqrt(disc);
+        if (t > 0 && t < bt) { bt = t; bk = p; bn = norm([O[0] + dir[0] * t - p.c[0], O[1] + dir[1] * t - p.c[1], O[2] + dir[2] * t - p.c[2]]); }
+      } else {
+        let t0 = -1e9, t1 = 1e9, ax = -1;
+        for (let k = 0; k < 3; k++) {
+          const lo = (p.c[k] - p.h[k] - O[k]) / dir[k], hi = (p.c[k] + p.h[k] - O[k]) / dir[k];
+          const a1 = Math.min(lo, hi), a2 = Math.max(lo, hi);
+          if (a1 > t0) { t0 = a1; ax = k; } if (a2 < t1) t1 = a2;
+        }
+        if (t0 <= t1 && t0 > 0 && t0 < bt) { bt = t0; bk = p; bn = [0, 0, 0]; bn[ax] = dir[ax] > 0 ? -1 : 1; }
+      }
+    }
+    const i = (y * w + x) * 4;
+    if (bk) {
+      const P = [O[0] + dir[0] * bt, O[1] + dir[1] * bt, O[2] + dir[2] * bt];
+      const c = demoColor(bk.k, P, bn), lam = Math.max(0, bn[0] * L[0] + bn[1] * L[1] + bn[2] * L[2]);
+      const sh = 0.42 + 0.68 * lam;
+      D[i] = c[0] * sh; D[i + 1] = c[1] * sh; D[i + 2] = c[2] * sh;
+    } else {
+      const g = 236 - 14 * (y / h) + (rnd() - 0.5) * 6;
+      D[i] = g; D[i + 1] = g - 2; D[i + 2] = g - 7;
+    }
+    D[i + 3] = 255;
+  }
+  return { width: w, height: h, data: D };
+};
+
+if (typeof module !== 'undefined') module.exports = H; else root.Hulma = H;
+})(this);
+
+</script>
+<script>
+/* qrcode-generator 1.4.4, MIT licence, Kazuhiko Arase */
+//---------------------------------------------------------------------
+//
+// QR Code Generator for JavaScript
+//
+// Copyright (c) 2009 Kazuhiko Arase
+//
+// URL: http://www.d-project.com/
+//
+// Licensed under the MIT license:
+//  http://www.opensource.org/licenses/mit-license.php
+//
+// The word 'QR Code' is registered trademark of
+// DENSO WAVE INCORPORATED
+//  http://www.denso-wave.com/qrcode/faqpatent-e.html
+//
+//---------------------------------------------------------------------
+
+var qrcode = function() {
+
+  //---------------------------------------------------------------------
+  // qrcode
+  //---------------------------------------------------------------------
+
+  /**
+   * qrcode
+   * @param typeNumber 1 to 40
+   * @param errorCorrectionLevel 'L','M','Q','H'
+   */
+  var qrcode = function(typeNumber, errorCorrectionLevel) {
+
+    var PAD0 = 0xEC;
+    var PAD1 = 0x11;
+
+    var _typeNumber = typeNumber;
+    var _errorCorrectionLevel = QRErrorCorrectionLevel[errorCorrectionLevel];
+    var _modules = null;
+    var _moduleCount = 0;
+    var _dataCache = null;
+    var _dataList = [];
+
+    var _this = {};
+
+    var makeImpl = function(test, maskPattern) {
+
+      _moduleCount = _typeNumber * 4 + 17;
+      _modules = function(moduleCount) {
+        var modules = new Array(moduleCount);
+        for (var row = 0; row < moduleCount; row += 1) {
+          modules[row] = new Array(moduleCount);
+          for (var col = 0; col < moduleCount; col += 1) {
+            modules[row][col] = null;
+          }
+        }
+        return modules;
+      }(_moduleCount);
+
+      setupPositionProbePattern(0, 0);
+      setupPositionProbePattern(_moduleCount - 7, 0);
+      setupPositionProbePattern(0, _moduleCount - 7);
+      setupPositionAdjustPattern();
+      setupTimingPattern();
+      setupTypeInfo(test, maskPattern);
+
+      if (_typeNumber >= 7) {
+        setupTypeNumber(test);
+      }
+
+      if (_dataCache == null) {
+        _dataCache = createData(_typeNumber, _errorCorrectionLevel, _dataList);
+      }
+
+      mapData(_dataCache, maskPattern);
+    };
+
+    var setupPositionProbePattern = function(row, col) {
+
+      for (var r = -1; r <= 7; r += 1) {
+
+        if (row + r <= -1 || _moduleCount <= row + r) continue;
+
+        for (var c = -1; c <= 7; c += 1) {
+
+          if (col + c <= -1 || _moduleCount <= col + c) continue;
+
+          if ( (0 <= r && r <= 6 && (c == 0 || c == 6) )
+              || (0 <= c && c <= 6 && (r == 0 || r == 6) )
+              || (2 <= r && r <= 4 && 2 <= c && c <= 4) ) {
+            _modules[row + r][col + c] = true;
+          } else {
+            _modules[row + r][col + c] = false;
+          }
+        }
+      }
+    };
+
+    var getBestMaskPattern = function() {
+
+      var minLostPoint = 0;
+      var pattern = 0;
+
+      for (var i = 0; i < 8; i += 1) {
+
+        makeImpl(true, i);
+
+        var lostPoint = QRUtil.getLostPoint(_this);
+
+        if (i == 0 || minLostPoint > lostPoint) {
+          minLostPoint = lostPoint;
+          pattern = i;
+        }
+      }
+
+      return pattern;
+    };
+
+    var setupTimingPattern = function() {
+
+      for (var r = 8; r < _moduleCount - 8; r += 1) {
+        if (_modules[r][6] != null) {
+          continue;
+        }
+        _modules[r][6] = (r % 2 == 0);
+      }
+
+      for (var c = 8; c < _moduleCount - 8; c += 1) {
+        if (_modules[6][c] != null) {
+          continue;
+        }
+        _modules[6][c] = (c % 2 == 0);
+      }
+    };
+
+    var setupPositionAdjustPattern = function() {
+
+      var pos = QRUtil.getPatternPosition(_typeNumber);
+
+      for (var i = 0; i < pos.length; i += 1) {
+
+        for (var j = 0; j < pos.length; j += 1) {
+
+          var row = pos[i];
+          var col = pos[j];
+
+          if (_modules[row][col] != null) {
+            continue;
+          }
+
+          for (var r = -2; r <= 2; r += 1) {
+
+            for (var c = -2; c <= 2; c += 1) {
+
+              if (r == -2 || r == 2 || c == -2 || c == 2
+                  || (r == 0 && c == 0) ) {
+                _modules[row + r][col + c] = true;
+              } else {
+                _modules[row + r][col + c] = false;
+              }
+            }
+          }
+        }
+      }
+    };
+
+    var setupTypeNumber = function(test) {
+
+      var bits = QRUtil.getBCHTypeNumber(_typeNumber);
+
+      for (var i = 0; i < 18; i += 1) {
+        var mod = (!test && ( (bits >> i) & 1) == 1);
+        _modules[Math.floor(i / 3)][i % 3 + _moduleCount - 8 - 3] = mod;
+      }
+
+      for (var i = 0; i < 18; i += 1) {
+        var mod = (!test && ( (bits >> i) & 1) == 1);
+        _modules[i % 3 + _moduleCount - 8 - 3][Math.floor(i / 3)] = mod;
+      }
+    };
+
+    var setupTypeInfo = function(test, maskPattern) {
+
+      var data = (_errorCorrectionLevel << 3) | maskPattern;
+      var bits = QRUtil.getBCHTypeInfo(data);
+
+      // vertical
+      for (var i = 0; i < 15; i += 1) {
+
+        var mod = (!test && ( (bits >> i) & 1) == 1);
+
+        if (i < 6) {
+          _modules[i][8] = mod;
+        } else if (i < 8) {
+          _modules[i + 1][8] = mod;
+        } else {
+          _modules[_moduleCount - 15 + i][8] = mod;
+        }
+      }
+
+      // horizontal
+      for (var i = 0; i < 15; i += 1) {
+
+        var mod = (!test && ( (bits >> i) & 1) == 1);
+
+        if (i < 8) {
+          _modules[8][_moduleCount - i - 1] = mod;
+        } else if (i < 9) {
+          _modules[8][15 - i - 1 + 1] = mod;
+        } else {
+          _modules[8][15 - i - 1] = mod;
+        }
+      }
+
+      // fixed module
+      _modules[_moduleCount - 8][8] = (!test);
+    };
+
+    var mapData = function(data, maskPattern) {
+
+      var inc = -1;
+      var row = _moduleCount - 1;
+      var bitIndex = 7;
+      var byteIndex = 0;
+      var maskFunc = QRUtil.getMaskFunction(maskPattern);
+
+      for (var col = _moduleCount - 1; col > 0; col -= 2) {
+
+        if (col == 6) col -= 1;
+
+        while (true) {
+
+          for (var c = 0; c < 2; c += 1) {
+
+            if (_modules[row][col - c] == null) {
+
+              var dark = false;
+
+              if (byteIndex < data.length) {
+                dark = ( ( (data[byteIndex] >>> bitIndex) & 1) == 1);
+              }
+
+              var mask = maskFunc(row, col - c);
+
+              if (mask) {
+                dark = !dark;
+              }
+
+              _modules[row][col - c] = dark;
+              bitIndex -= 1;
+
+              if (bitIndex == -1) {
+                byteIndex += 1;
+                bitIndex = 7;
+              }
+            }
+          }
+
+          row += inc;
+
+          if (row < 0 || _moduleCount <= row) {
+            row -= inc;
+            inc = -inc;
+            break;
+          }
+        }
+      }
+    };
+
+    var createBytes = function(buffer, rsBlocks) {
+
+      var offset = 0;
+
+      var maxDcCount = 0;
+      var maxEcCount = 0;
+
+      var dcdata = new Array(rsBlocks.length);
+      var ecdata = new Array(rsBlocks.length);
+
+      for (var r = 0; r < rsBlocks.length; r += 1) {
+
+        var dcCount = rsBlocks[r].dataCount;
+        var ecCount = rsBlocks[r].totalCount - dcCount;
+
+        maxDcCount = Math.max(maxDcCount, dcCount);
+        maxEcCount = Math.max(maxEcCount, ecCount);
+
+        dcdata[r] = new Array(dcCount);
+
+        for (var i = 0; i < dcdata[r].length; i += 1) {
+          dcdata[r][i] = 0xff & buffer.getBuffer()[i + offset];
+        }
+        offset += dcCount;
+
+        var rsPoly = QRUtil.getErrorCorrectPolynomial(ecCount);
+        var rawPoly = qrPolynomial(dcdata[r], rsPoly.getLength() - 1);
+
+        var modPoly = rawPoly.mod(rsPoly);
+        ecdata[r] = new Array(rsPoly.getLength() - 1);
+        for (var i = 0; i < ecdata[r].length; i += 1) {
+          var modIndex = i + modPoly.getLength() - ecdata[r].length;
+          ecdata[r][i] = (modIndex >= 0)? modPoly.getAt(modIndex) : 0;
+        }
+      }
+
+      var totalCodeCount = 0;
+      for (var i = 0; i < rsBlocks.length; i += 1) {
+        totalCodeCount += rsBlocks[i].totalCount;
+      }
+
+      var data = new Array(totalCodeCount);
+      var index = 0;
+
+      for (var i = 0; i < maxDcCount; i += 1) {
+        for (var r = 0; r < rsBlocks.length; r += 1) {
+          if (i < dcdata[r].length) {
+            data[index] = dcdata[r][i];
+            index += 1;
+          }
+        }
+      }
+
+      for (var i = 0; i < maxEcCount; i += 1) {
+        for (var r = 0; r < rsBlocks.length; r += 1) {
+          if (i < ecdata[r].length) {
+            data[index] = ecdata[r][i];
+            index += 1;
+          }
+        }
+      }
+
+      return data;
+    };
+
+    var createData = function(typeNumber, errorCorrectionLevel, dataList) {
+
+      var rsBlocks = QRRSBlock.getRSBlocks(typeNumber, errorCorrectionLevel);
+
+      var buffer = qrBitBuffer();
+
+      for (var i = 0; i < dataList.length; i += 1) {
+        var data = dataList[i];
+        buffer.put(data.getMode(), 4);
+        buffer.put(data.getLength(), QRUtil.getLengthInBits(data.getMode(), typeNumber) );
+        data.write(buffer);
+      }
+
+      // calc num max data.
+      var totalDataCount = 0;
+      for (var i = 0; i < rsBlocks.length; i += 1) {
+        totalDataCount += rsBlocks[i].dataCount;
+      }
+
+      if (buffer.getLengthInBits() > totalDataCount * 8) {
+        throw 'code length overflow. ('
+          + buffer.getLengthInBits()
+          + '>'
+          + totalDataCount * 8
+          + ')';
+      }
+
+      // end code
+      if (buffer.getLengthInBits() + 4 <= totalDataCount * 8) {
+        buffer.put(0, 4);
+      }
+
+      // padding
+      while (buffer.getLengthInBits() % 8 != 0) {
+        buffer.putBit(false);
+      }
+
+      // padding
+      while (true) {
+
+        if (buffer.getLengthInBits() >= totalDataCount * 8) {
+          break;
+        }
+        buffer.put(PAD0, 8);
+
+        if (buffer.getLengthInBits() >= totalDataCount * 8) {
+          break;
+        }
+        buffer.put(PAD1, 8);
+      }
+
+      return createBytes(buffer, rsBlocks);
+    };
+
+    _this.addData = function(data, mode) {
+
+      mode = mode || 'Byte';
+
+      var newData = null;
+
+      switch(mode) {
+      case 'Numeric' :
+        newData = qrNumber(data);
+        break;
+      case 'Alphanumeric' :
+        newData = qrAlphaNum(data);
+        break;
+      case 'Byte' :
+        newData = qr8BitByte(data);
+        break;
+      case 'Kanji' :
+        newData = qrKanji(data);
+        break;
+      default :
+        throw 'mode:' + mode;
+      }
+
+      _dataList.push(newData);
+      _dataCache = null;
+    };
+
+    _this.isDark = function(row, col) {
+      if (row < 0 || _moduleCount <= row || col < 0 || _moduleCount <= col) {
+        throw row + ',' + col;
+      }
+      return _modules[row][col];
+    };
+
+    _this.getModuleCount = function() {
+      return _moduleCount;
+    };
+
+    _this.make = function() {
+      if (_typeNumber < 1) {
+        var typeNumber = 1;
+
+        for (; typeNumber < 40; typeNumber++) {
+          var rsBlocks = QRRSBlock.getRSBlocks(typeNumber, _errorCorrectionLevel);
+          var buffer = qrBitBuffer();
+
+          for (var i = 0; i < _dataList.length; i++) {
+            var data = _dataList[i];
+            buffer.put(data.getMode(), 4);
+            buffer.put(data.getLength(), QRUtil.getLengthInBits(data.getMode(), typeNumber) );
+            data.write(buffer);
+          }
+
+          var totalDataCount = 0;
+          for (var i = 0; i < rsBlocks.length; i++) {
+            totalDataCount += rsBlocks[i].dataCount;
+          }
+
+          if (buffer.getLengthInBits() <= totalDataCount * 8) {
+            break;
+          }
+        }
+
+        _typeNumber = typeNumber;
+      }
+
+      makeImpl(false, getBestMaskPattern() );
+    };
+
+    _this.createTableTag = function(cellSize, margin) {
+
+      cellSize = cellSize || 2;
+      margin = (typeof margin == 'undefined')? cellSize * 4 : margin;
+
+      var qrHtml = '';
+
+      qrHtml += '<table style="';
+      qrHtml += ' border-width: 0px; border-style: none;';
+      qrHtml += ' border-collapse: collapse;';
+      qrHtml += ' padding: 0px; margin: ' + margin + 'px;';
+      qrHtml += '">';
+      qrHtml += '<tbody>';
+
+      for (var r = 0; r < _this.getModuleCount(); r += 1) {
+
+        qrHtml += '<tr>';
+
+        for (var c = 0; c < _this.getModuleCount(); c += 1) {
+          qrHtml += '<td style="';
+          qrHtml += ' border-width: 0px; border-style: none;';
+          qrHtml += ' border-collapse: collapse;';
+          qrHtml += ' padding: 0px; margin: 0px;';
+          qrHtml += ' width: ' + cellSize + 'px;';
+          qrHtml += ' height: ' + cellSize + 'px;';
+          qrHtml += ' background-color: ';
+          qrHtml += _this.isDark(r, c)? '#000000' : '#ffffff';
+          qrHtml += ';';
+          qrHtml += '"/>';
+        }
+
+        qrHtml += '</tr>';
+      }
+
+      qrHtml += '</tbody>';
+      qrHtml += '</table>';
+
+      return qrHtml;
+    };
+
+    _this.createSvgTag = function(cellSize, margin, alt, title) {
+
+      var opts = {};
+      if (typeof arguments[0] == 'object') {
+        // Called by options.
+        opts = arguments[0];
+        // overwrite cellSize and margin.
+        cellSize = opts.cellSize;
+        margin = opts.margin;
+        alt = opts.alt;
+        title = opts.title;
+      }
+
+      cellSize = cellSize || 2;
+      margin = (typeof margin == 'undefined')? cellSize * 4 : margin;
+
+      // Compose alt property surrogate
+      alt = (typeof alt === 'string') ? {text: alt} : alt || {};
+      alt.text = alt.text || null;
+      alt.id = (alt.text) ? alt.id || 'qrcode-description' : null;
+
+      // Compose title property surrogate
+      title = (typeof title === 'string') ? {text: title} : title || {};
+      title.text = title.text || null;
+      title.id = (title.text) ? title.id || 'qrcode-title' : null;
+
+      var size = _this.getModuleCount() * cellSize + margin * 2;
+      var c, mc, r, mr, qrSvg='', rect;
+
+      rect = 'l' + cellSize + ',0 0,' + cellSize +
+        ' -' + cellSize + ',0 0,-' + cellSize + 'z ';
+
+      qrSvg += '<svg version="1.1" xmlns="http://www.w3.org/2000/svg"';
+      qrSvg += !opts.scalable ? ' width="' + size + 'px" height="' + size + 'px"' : '';
+      qrSvg += ' viewBox="0 0 ' + size + ' ' + size + '" ';
+      qrSvg += ' preserveAspectRatio="xMinYMin meet"';
+      qrSvg += (title.text || alt.text) ? ' role="img" aria-labelledby="' +
+          escapeXml([title.id, alt.id].join(' ').trim() ) + '"' : '';
+      qrSvg += '>';
+      qrSvg += (title.text) ? '<title id="' + escapeXml(title.id) + '">' +
+          escapeXml(title.text) + '</title>' : '';
+      qrSvg += (alt.text) ? '<description id="' + escapeXml(alt.id) + '">' +
+          escapeXml(alt.text) + '</description>' : '';
+      qrSvg += '<rect width="100%" height="100%" fill="white" cx="0" cy="0"/>';
+      qrSvg += '<path d="';
+
+      for (r = 0; r < _this.getModuleCount(); r += 1) {
+        mr = r * cellSize + margin;
+        for (c = 0; c < _this.getModuleCount(); c += 1) {
+          if (_this.isDark(r, c) ) {
+            mc = c*cellSize+margin;
+            qrSvg += 'M' + mc + ',' + mr + rect;
+          }
+        }
+      }
+
+      qrSvg += '" stroke="transparent" fill="black"/>';
+      qrSvg += '</svg>';
+
+      return qrSvg;
+    };
+
+    _this.createDataURL = function(cellSize, margin) {
+
+      cellSize = cellSize || 2;
+      margin = (typeof margin == 'undefined')? cellSize * 4 : margin;
+
+      var size = _this.getModuleCount() * cellSize + margin * 2;
+      var min = margin;
+      var max = size - margin;
+
+      return createDataURL(size, size, function(x, y) {
+        if (min <= x && x < max && min <= y && y < max) {
+          var c = Math.floor( (x - min) / cellSize);
+          var r = Math.floor( (y - min) / cellSize);
+          return _this.isDark(r, c)? 0 : 1;
+        } else {
+          return 1;
+        }
+      } );
+    };
+
+    _this.createImgTag = function(cellSize, margin, alt) {
+
+      cellSize = cellSize || 2;
+      margin = (typeof margin == 'undefined')? cellSize * 4 : margin;
+
+      var size = _this.getModuleCount() * cellSize + margin * 2;
+
+      var img = '';
+      img += '<img';
+      img += '\u0020src="';
+      img += _this.createDataURL(cellSize, margin);
+      img += '"';
+      img += '\u0020width="';
+      img += size;
+      img += '"';
+      img += '\u0020height="';
+      img += size;
+      img += '"';
+      if (alt) {
+        img += '\u0020alt="';
+        img += escapeXml(alt);
+        img += '"';
+      }
+      img += '/>';
+
+      return img;
+    };
+
+    var escapeXml = function(s) {
+      var escaped = '';
+      for (var i = 0; i < s.length; i += 1) {
+        var c = s.charAt(i);
+        switch(c) {
+        case '<': escaped += '&lt;'; break;
+        case '>': escaped += '&gt;'; break;
+        case '&': escaped += '&amp;'; break;
+        case '"': escaped += '&quot;'; break;
+        default : escaped += c; break;
+        }
+      }
+      return escaped;
+    };
+
+    var _createHalfASCII = function(margin) {
+      var cellSize = 1;
+      margin = (typeof margin == 'undefined')? cellSize * 2 : margin;
+
+      var size = _this.getModuleCount() * cellSize + margin * 2;
+      var min = margin;
+      var max = size - margin;
+
+      var y, x, r1, r2, p;
+
+      var blocks = {
+        '██': '█',
+        '█ ': '▀',
+        ' █': '▄',
+        '  ': ' '
+      };
+
+      var blocksLastLineNoMargin = {
+        '██': '▀',
+        '█ ': '▀',
+        ' █': ' ',
+        '  ': ' '
+      };
+
+      var ascii = '';
+      for (y = 0; y < size; y += 2) {
+        r1 = Math.floor((y - min) / cellSize);
+        r2 = Math.floor((y + 1 - min) / cellSize);
+        for (x = 0; x < size; x += 1) {
+          p = '█';
+
+          if (min <= x && x < max && min <= y && y < max && _this.isDark(r1, Math.floor((x - min) / cellSize))) {
+            p = ' ';
+          }
+
+          if (min <= x && x < max && min <= y+1 && y+1 < max && _this.isDark(r2, Math.floor((x - min) / cellSize))) {
+            p += ' ';
+          }
+          else {
+            p += '█';
+          }
+
+          // Output 2 characters per pixel, to create full square. 1 character per pixels gives only half width of square.
+          ascii += (margin < 1 && y+1 >= max) ? blocksLastLineNoMargin[p] : blocks[p];
+        }
+
+        ascii += '\n';
+      }
+
+      if (size % 2 && margin > 0) {
+        return ascii.substring(0, ascii.length - size - 1) + Array(size+1).join('▀');
+      }
+
+      return ascii.substring(0, ascii.length-1);
+    };
+
+    _this.createASCII = function(cellSize, margin) {
+      cellSize = cellSize || 1;
+
+      if (cellSize < 2) {
+        return _createHalfASCII(margin);
+      }
+
+      cellSize -= 1;
+      margin = (typeof margin == 'undefined')? cellSize * 2 : margin;
+
+      var size = _this.getModuleCount() * cellSize + margin * 2;
+      var min = margin;
+      var max = size - margin;
+
+      var y, x, r, p;
+
+      var white = Array(cellSize+1).join('██');
+      var black = Array(cellSize+1).join('  ');
+
+      var ascii = '';
+      var line = '';
+      for (y = 0; y < size; y += 1) {
+        r = Math.floor( (y - min) / cellSize);
+        line = '';
+        for (x = 0; x < size; x += 1) {
+          p = 1;
+
+          if (min <= x && x < max && min <= y && y < max && _this.isDark(r, Math.floor((x - min) / cellSize))) {
+            p = 0;
+          }
+
+          // Output 2 characters per pixel, to create full square. 1 character per pixels gives only half width of square.
+          line += p ? white : black;
+        }
+
+        for (r = 0; r < cellSize; r += 1) {
+          ascii += line + '\n';
+        }
+      }
+
+      return ascii.substring(0, ascii.length-1);
+    };
+
+    _this.renderTo2dContext = function(context, cellSize) {
+      cellSize = cellSize || 2;
+      var length = _this.getModuleCount();
+      for (var row = 0; row < length; row++) {
+        for (var col = 0; col < length; col++) {
+          context.fillStyle = _this.isDark(row, col) ? 'black' : 'white';
+          context.fillRect(row * cellSize, col * cellSize, cellSize, cellSize);
+        }
+      }
+    }
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // qrcode.stringToBytes
+  //---------------------------------------------------------------------
+
+  qrcode.stringToBytesFuncs = {
+    'default' : function(s) {
+      var bytes = [];
+      for (var i = 0; i < s.length; i += 1) {
+        var c = s.charCodeAt(i);
+        bytes.push(c & 0xff);
+      }
+      return bytes;
+    }
+  };
+
+  qrcode.stringToBytes = qrcode.stringToBytesFuncs['default'];
+
+  //---------------------------------------------------------------------
+  // qrcode.createStringToBytes
+  //---------------------------------------------------------------------
+
+  /**
+   * @param unicodeData base64 string of byte array.
+   * [16bit Unicode],[16bit Bytes], ...
+   * @param numChars
+   */
+  qrcode.createStringToBytes = function(unicodeData, numChars) {
+
+    // create conversion map.
+
+    var unicodeMap = function() {
+
+      var bin = base64DecodeInputStream(unicodeData);
+      var read = function() {
+        var b = bin.read();
+        if (b == -1) throw 'eof';
+        return b;
+      };
+
+      var count = 0;
+      var unicodeMap = {};
+      while (true) {
+        var b0 = bin.read();
+        if (b0 == -1) break;
+        var b1 = read();
+        var b2 = read();
+        var b3 = read();
+        var k = String.fromCharCode( (b0 << 8) | b1);
+        var v = (b2 << 8) | b3;
+        unicodeMap[k] = v;
+        count += 1;
+      }
+      if (count != numChars) {
+        throw count + ' != ' + numChars;
+      }
+
+      return unicodeMap;
+    }();
+
+    var unknownChar = '?'.charCodeAt(0);
+
+    return function(s) {
+      var bytes = [];
+      for (var i = 0; i < s.length; i += 1) {
+        var c = s.charCodeAt(i);
+        if (c < 128) {
+          bytes.push(c);
+        } else {
+          var b = unicodeMap[s.charAt(i)];
+          if (typeof b == 'number') {
+            if ( (b & 0xff) == b) {
+              // 1byte
+              bytes.push(b);
+            } else {
+              // 2bytes
+              bytes.push(b >>> 8);
+              bytes.push(b & 0xff);
+            }
+          } else {
+            bytes.push(unknownChar);
+          }
+        }
+      }
+      return bytes;
+    };
+  };
+
+  //---------------------------------------------------------------------
+  // QRMode
+  //---------------------------------------------------------------------
+
+  var QRMode = {
+    MODE_NUMBER :    1 << 0,
+    MODE_ALPHA_NUM : 1 << 1,
+    MODE_8BIT_BYTE : 1 << 2,
+    MODE_KANJI :     1 << 3
+  };
+
+  //---------------------------------------------------------------------
+  // QRErrorCorrectionLevel
+  //---------------------------------------------------------------------
+
+  var QRErrorCorrectionLevel = {
+    L : 1,
+    M : 0,
+    Q : 3,
+    H : 2
+  };
+
+  //---------------------------------------------------------------------
+  // QRMaskPattern
+  //---------------------------------------------------------------------
+
+  var QRMaskPattern = {
+    PATTERN000 : 0,
+    PATTERN001 : 1,
+    PATTERN010 : 2,
+    PATTERN011 : 3,
+    PATTERN100 : 4,
+    PATTERN101 : 5,
+    PATTERN110 : 6,
+    PATTERN111 : 7
+  };
+
+  //---------------------------------------------------------------------
+  // QRUtil
+  //---------------------------------------------------------------------
+
+  var QRUtil = function() {
+
+    var PATTERN_POSITION_TABLE = [
+      [],
+      [6, 18],
+      [6, 22],
+      [6, 26],
+      [6, 30],
+      [6, 34],
+      [6, 22, 38],
+      [6, 24, 42],
+      [6, 26, 46],
+      [6, 28, 50],
+      [6, 30, 54],
+      [6, 32, 58],
+      [6, 34, 62],
+      [6, 26, 46, 66],
+      [6, 26, 48, 70],
+      [6, 26, 50, 74],
+      [6, 30, 54, 78],
+      [6, 30, 56, 82],
+      [6, 30, 58, 86],
+      [6, 34, 62, 90],
+      [6, 28, 50, 72, 94],
+      [6, 26, 50, 74, 98],
+      [6, 30, 54, 78, 102],
+      [6, 28, 54, 80, 106],
+      [6, 32, 58, 84, 110],
+      [6, 30, 58, 86, 114],
+      [6, 34, 62, 90, 118],
+      [6, 26, 50, 74, 98, 122],
+      [6, 30, 54, 78, 102, 126],
+      [6, 26, 52, 78, 104, 130],
+      [6, 30, 56, 82, 108, 134],
+      [6, 34, 60, 86, 112, 138],
+      [6, 30, 58, 86, 114, 142],
+      [6, 34, 62, 90, 118, 146],
+      [6, 30, 54, 78, 102, 126, 150],
+      [6, 24, 50, 76, 102, 128, 154],
+      [6, 28, 54, 80, 106, 132, 158],
+      [6, 32, 58, 84, 110, 136, 162],
+      [6, 26, 54, 82, 110, 138, 166],
+      [6, 30, 58, 86, 114, 142, 170]
+    ];
+    var G15 = (1 << 10) | (1 << 8) | (1 << 5) | (1 << 4) | (1 << 2) | (1 << 1) | (1 << 0);
+    var G18 = (1 << 12) | (1 << 11) | (1 << 10) | (1 << 9) | (1 << 8) | (1 << 5) | (1 << 2) | (1 << 0);
+    var G15_MASK = (1 << 14) | (1 << 12) | (1 << 10) | (1 << 4) | (1 << 1);
+
+    var _this = {};
+
+    var getBCHDigit = function(data) {
+      var digit = 0;
+      while (data != 0) {
+        digit += 1;
+        data >>>= 1;
+      }
+      return digit;
+    };
+
+    _this.getBCHTypeInfo = function(data) {
+      var d = data << 10;
+      while (getBCHDigit(d) - getBCHDigit(G15) >= 0) {
+        d ^= (G15 << (getBCHDigit(d) - getBCHDigit(G15) ) );
+      }
+      return ( (data << 10) | d) ^ G15_MASK;
+    };
+
+    _this.getBCHTypeNumber = function(data) {
+      var d = data << 12;
+      while (getBCHDigit(d) - getBCHDigit(G18) >= 0) {
+        d ^= (G18 << (getBCHDigit(d) - getBCHDigit(G18) ) );
+      }
+      return (data << 12) | d;
+    };
+
+    _this.getPatternPosition = function(typeNumber) {
+      return PATTERN_POSITION_TABLE[typeNumber - 1];
+    };
+
+    _this.getMaskFunction = function(maskPattern) {
+
+      switch (maskPattern) {
+
+      case QRMaskPattern.PATTERN000 :
+        return function(i, j) { return (i + j) % 2 == 0; };
+      case QRMaskPattern.PATTERN001 :
+        return function(i, j) { return i % 2 == 0; };
+      case QRMaskPattern.PATTERN010 :
+        return function(i, j) { return j % 3 == 0; };
+      case QRMaskPattern.PATTERN011 :
+        return function(i, j) { return (i + j) % 3 == 0; };
+      case QRMaskPattern.PATTERN100 :
+        return function(i, j) { return (Math.floor(i / 2) + Math.floor(j / 3) ) % 2 == 0; };
+      case QRMaskPattern.PATTERN101 :
+        return function(i, j) { return (i * j) % 2 + (i * j) % 3 == 0; };
+      case QRMaskPattern.PATTERN110 :
+        return function(i, j) { return ( (i * j) % 2 + (i * j) % 3) % 2 == 0; };
+      case QRMaskPattern.PATTERN111 :
+        return function(i, j) { return ( (i * j) % 3 + (i + j) % 2) % 2 == 0; };
+
+      default :
+        throw 'bad maskPattern:' + maskPattern;
+      }
+    };
+
+    _this.getErrorCorrectPolynomial = function(errorCorrectLength) {
+      var a = qrPolynomial([1], 0);
+      for (var i = 0; i < errorCorrectLength; i += 1) {
+        a = a.multiply(qrPolynomial([1, QRMath.gexp(i)], 0) );
+      }
+      return a;
+    };
+
+    _this.getLengthInBits = function(mode, type) {
+
+      if (1 <= type && type < 10) {
+
+        // 1 - 9
+
+        switch(mode) {
+        case QRMode.MODE_NUMBER    : return 10;
+        case QRMode.MODE_ALPHA_NUM : return 9;
+        case QRMode.MODE_8BIT_BYTE : return 8;
+        case QRMode.MODE_KANJI     : return 8;
+        default :
+          throw 'mode:' + mode;
+        }
+
+      } else if (type < 27) {
+
+        // 10 - 26
+
+        switch(mode) {
+        case QRMode.MODE_NUMBER    : return 12;
+        case QRMode.MODE_ALPHA_NUM : return 11;
+        case QRMode.MODE_8BIT_BYTE : return 16;
+        case QRMode.MODE_KANJI     : return 10;
+        default :
+          throw 'mode:' + mode;
+        }
+
+      } else if (type < 41) {
+
+        // 27 - 40
+
+        switch(mode) {
+        case QRMode.MODE_NUMBER    : return 14;
+        case QRMode.MODE_ALPHA_NUM : return 13;
+        case QRMode.MODE_8BIT_BYTE : return 16;
+        case QRMode.MODE_KANJI     : return 12;
+        default :
+          throw 'mode:' + mode;
+        }
+
+      } else {
+        throw 'type:' + type;
+      }
+    };
+
+    _this.getLostPoint = function(qrcode) {
+
+      var moduleCount = qrcode.getModuleCount();
+
+      var lostPoint = 0;
+
+      // LEVEL1
+
+      for (var row = 0; row < moduleCount; row += 1) {
+        for (var col = 0; col < moduleCount; col += 1) {
+
+          var sameCount = 0;
+          var dark = qrcode.isDark(row, col);
+
+          for (var r = -1; r <= 1; r += 1) {
+
+            if (row + r < 0 || moduleCount <= row + r) {
+              continue;
+            }
+
+            for (var c = -1; c <= 1; c += 1) {
+
+              if (col + c < 0 || moduleCount <= col + c) {
+                continue;
+              }
+
+              if (r == 0 && c == 0) {
+                continue;
+              }
+
+              if (dark == qrcode.isDark(row + r, col + c) ) {
+                sameCount += 1;
+              }
+            }
+          }
+
+          if (sameCount > 5) {
+            lostPoint += (3 + sameCount - 5);
+          }
+        }
+      };
+
+      // LEVEL2
+
+      for (var row = 0; row < moduleCount - 1; row += 1) {
+        for (var col = 0; col < moduleCount - 1; col += 1) {
+          var count = 0;
+          if (qrcode.isDark(row, col) ) count += 1;
+          if (qrcode.isDark(row + 1, col) ) count += 1;
+          if (qrcode.isDark(row, col + 1) ) count += 1;
+          if (qrcode.isDark(row + 1, col + 1) ) count += 1;
+          if (count == 0 || count == 4) {
+            lostPoint += 3;
+          }
+        }
+      }
+
+      // LEVEL3
+
+      for (var row = 0; row < moduleCount; row += 1) {
+        for (var col = 0; col < moduleCount - 6; col += 1) {
+          if (qrcode.isDark(row, col)
+              && !qrcode.isDark(row, col + 1)
+              &&  qrcode.isDark(row, col + 2)
+              &&  qrcode.isDark(row, col + 3)
+              &&  qrcode.isDark(row, col + 4)
+              && !qrcode.isDark(row, col + 5)
+              &&  qrcode.isDark(row, col + 6) ) {
+            lostPoint += 40;
+          }
+        }
+      }
+
+      for (var col = 0; col < moduleCount; col += 1) {
+        for (var row = 0; row < moduleCount - 6; row += 1) {
+          if (qrcode.isDark(row, col)
+              && !qrcode.isDark(row + 1, col)
+              &&  qrcode.isDark(row + 2, col)
+              &&  qrcode.isDark(row + 3, col)
+              &&  qrcode.isDark(row + 4, col)
+              && !qrcode.isDark(row + 5, col)
+              &&  qrcode.isDark(row + 6, col) ) {
+            lostPoint += 40;
+          }
+        }
+      }
+
+      // LEVEL4
+
+      var darkCount = 0;
+
+      for (var col = 0; col < moduleCount; col += 1) {
+        for (var row = 0; row < moduleCount; row += 1) {
+          if (qrcode.isDark(row, col) ) {
+            darkCount += 1;
+          }
+        }
+      }
+
+      var ratio = Math.abs(100 * darkCount / moduleCount / moduleCount - 50) / 5;
+      lostPoint += ratio * 10;
+
+      return lostPoint;
+    };
+
+    return _this;
+  }();
+
+  //---------------------------------------------------------------------
+  // QRMath
+  //---------------------------------------------------------------------
+
+  var QRMath = function() {
+
+    var EXP_TABLE = new Array(256);
+    var LOG_TABLE = new Array(256);
+
+    // initialize tables
+    for (var i = 0; i < 8; i += 1) {
+      EXP_TABLE[i] = 1 << i;
+    }
+    for (var i = 8; i < 256; i += 1) {
+      EXP_TABLE[i] = EXP_TABLE[i - 4]
+        ^ EXP_TABLE[i - 5]
+        ^ EXP_TABLE[i - 6]
+        ^ EXP_TABLE[i - 8];
+    }
+    for (var i = 0; i < 255; i += 1) {
+      LOG_TABLE[EXP_TABLE[i] ] = i;
+    }
+
+    var _this = {};
+
+    _this.glog = function(n) {
+
+      if (n < 1) {
+        throw 'glog(' + n + ')';
+      }
+
+      return LOG_TABLE[n];
+    };
+
+    _this.gexp = function(n) {
+
+      while (n < 0) {
+        n += 255;
+      }
+
+      while (n >= 256) {
+        n -= 255;
+      }
+
+      return EXP_TABLE[n];
+    };
+
+    return _this;
+  }();
+
+  //---------------------------------------------------------------------
+  // qrPolynomial
+  //---------------------------------------------------------------------
+
+  function qrPolynomial(num, shift) {
+
+    if (typeof num.length == 'undefined') {
+      throw num.length + '/' + shift;
+    }
+
+    var _num = function() {
+      var offset = 0;
+      while (offset < num.length && num[offset] == 0) {
+        offset += 1;
+      }
+      var _num = new Array(num.length - offset + shift);
+      for (var i = 0; i < num.length - offset; i += 1) {
+        _num[i] = num[i + offset];
+      }
+      return _num;
+    }();
+
+    var _this = {};
+
+    _this.getAt = function(index) {
+      return _num[index];
+    };
+
+    _this.getLength = function() {
+      return _num.length;
+    };
+
+    _this.multiply = function(e) {
+
+      var num = new Array(_this.getLength() + e.getLength() - 1);
+
+      for (var i = 0; i < _this.getLength(); i += 1) {
+        for (var j = 0; j < e.getLength(); j += 1) {
+          num[i + j] ^= QRMath.gexp(QRMath.glog(_this.getAt(i) ) + QRMath.glog(e.getAt(j) ) );
+        }
+      }
+
+      return qrPolynomial(num, 0);
+    };
+
+    _this.mod = function(e) {
+
+      if (_this.getLength() - e.getLength() < 0) {
+        return _this;
+      }
+
+      var ratio = QRMath.glog(_this.getAt(0) ) - QRMath.glog(e.getAt(0) );
+
+      var num = new Array(_this.getLength() );
+      for (var i = 0; i < _this.getLength(); i += 1) {
+        num[i] = _this.getAt(i);
+      }
+
+      for (var i = 0; i < e.getLength(); i += 1) {
+        num[i] ^= QRMath.gexp(QRMath.glog(e.getAt(i) ) + ratio);
+      }
+
+      // recursive call
+      return qrPolynomial(num, 0).mod(e);
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // QRRSBlock
+  //---------------------------------------------------------------------
+
+  var QRRSBlock = function() {
+
+    var RS_BLOCK_TABLE = [
+
+      // L
+      // M
+      // Q
+      // H
+
+      // 1
+      [1, 26, 19],
+      [1, 26, 16],
+      [1, 26, 13],
+      [1, 26, 9],
+
+      // 2
+      [1, 44, 34],
+      [1, 44, 28],
+      [1, 44, 22],
+      [1, 44, 16],
+
+      // 3
+      [1, 70, 55],
+      [1, 70, 44],
+      [2, 35, 17],
+      [2, 35, 13],
+
+      // 4
+      [1, 100, 80],
+      [2, 50, 32],
+      [2, 50, 24],
+      [4, 25, 9],
+
+      // 5
+      [1, 134, 108],
+      [2, 67, 43],
+      [2, 33, 15, 2, 34, 16],
+      [2, 33, 11, 2, 34, 12],
+
+      // 6
+      [2, 86, 68],
+      [4, 43, 27],
+      [4, 43, 19],
+      [4, 43, 15],
+
+      // 7
+      [2, 98, 78],
+      [4, 49, 31],
+      [2, 32, 14, 4, 33, 15],
+      [4, 39, 13, 1, 40, 14],
+
+      // 8
+      [2, 121, 97],
+      [2, 60, 38, 2, 61, 39],
+      [4, 40, 18, 2, 41, 19],
+      [4, 40, 14, 2, 41, 15],
+
+      // 9
+      [2, 146, 116],
+      [3, 58, 36, 2, 59, 37],
+      [4, 36, 16, 4, 37, 17],
+      [4, 36, 12, 4, 37, 13],
+
+      // 10
+      [2, 86, 68, 2, 87, 69],
+      [4, 69, 43, 1, 70, 44],
+      [6, 43, 19, 2, 44, 20],
+      [6, 43, 15, 2, 44, 16],
+
+      // 11
+      [4, 101, 81],
+      [1, 80, 50, 4, 81, 51],
+      [4, 50, 22, 4, 51, 23],
+      [3, 36, 12, 8, 37, 13],
+
+      // 12
+      [2, 116, 92, 2, 117, 93],
+      [6, 58, 36, 2, 59, 37],
+      [4, 46, 20, 6, 47, 21],
+      [7, 42, 14, 4, 43, 15],
+
+      // 13
+      [4, 133, 107],
+      [8, 59, 37, 1, 60, 38],
+      [8, 44, 20, 4, 45, 21],
+      [12, 33, 11, 4, 34, 12],
+
+      // 14
+      [3, 145, 115, 1, 146, 116],
+      [4, 64, 40, 5, 65, 41],
+      [11, 36, 16, 5, 37, 17],
+      [11, 36, 12, 5, 37, 13],
+
+      // 15
+      [5, 109, 87, 1, 110, 88],
+      [5, 65, 41, 5, 66, 42],
+      [5, 54, 24, 7, 55, 25],
+      [11, 36, 12, 7, 37, 13],
+
+      // 16
+      [5, 122, 98, 1, 123, 99],
+      [7, 73, 45, 3, 74, 46],
+      [15, 43, 19, 2, 44, 20],
+      [3, 45, 15, 13, 46, 16],
+
+      // 17
+      [1, 135, 107, 5, 136, 108],
+      [10, 74, 46, 1, 75, 47],
+      [1, 50, 22, 15, 51, 23],
+      [2, 42, 14, 17, 43, 15],
+
+      // 18
+      [5, 150, 120, 1, 151, 121],
+      [9, 69, 43, 4, 70, 44],
+      [17, 50, 22, 1, 51, 23],
+      [2, 42, 14, 19, 43, 15],
+
+      // 19
+      [3, 141, 113, 4, 142, 114],
+      [3, 70, 44, 11, 71, 45],
+      [17, 47, 21, 4, 48, 22],
+      [9, 39, 13, 16, 40, 14],
+
+      // 20
+      [3, 135, 107, 5, 136, 108],
+      [3, 67, 41, 13, 68, 42],
+      [15, 54, 24, 5, 55, 25],
+      [15, 43, 15, 10, 44, 16],
+
+      // 21
+      [4, 144, 116, 4, 145, 117],
+      [17, 68, 42],
+      [17, 50, 22, 6, 51, 23],
+      [19, 46, 16, 6, 47, 17],
+
+      // 22
+      [2, 139, 111, 7, 140, 112],
+      [17, 74, 46],
+      [7, 54, 24, 16, 55, 25],
+      [34, 37, 13],
+
+      // 23
+      [4, 151, 121, 5, 152, 122],
+      [4, 75, 47, 14, 76, 48],
+      [11, 54, 24, 14, 55, 25],
+      [16, 45, 15, 14, 46, 16],
+
+      // 24
+      [6, 147, 117, 4, 148, 118],
+      [6, 73, 45, 14, 74, 46],
+      [11, 54, 24, 16, 55, 25],
+      [30, 46, 16, 2, 47, 17],
+
+      // 25
+      [8, 132, 106, 4, 133, 107],
+      [8, 75, 47, 13, 76, 48],
+      [7, 54, 24, 22, 55, 25],
+      [22, 45, 15, 13, 46, 16],
+
+      // 26
+      [10, 142, 114, 2, 143, 115],
+      [19, 74, 46, 4, 75, 47],
+      [28, 50, 22, 6, 51, 23],
+      [33, 46, 16, 4, 47, 17],
+
+      // 27
+      [8, 152, 122, 4, 153, 123],
+      [22, 73, 45, 3, 74, 46],
+      [8, 53, 23, 26, 54, 24],
+      [12, 45, 15, 28, 46, 16],
+
+      // 28
+      [3, 147, 117, 10, 148, 118],
+      [3, 73, 45, 23, 74, 46],
+      [4, 54, 24, 31, 55, 25],
+      [11, 45, 15, 31, 46, 16],
+
+      // 29
+      [7, 146, 116, 7, 147, 117],
+      [21, 73, 45, 7, 74, 46],
+      [1, 53, 23, 37, 54, 24],
+      [19, 45, 15, 26, 46, 16],
+
+      // 30
+      [5, 145, 115, 10, 146, 116],
+      [19, 75, 47, 10, 76, 48],
+      [15, 54, 24, 25, 55, 25],
+      [23, 45, 15, 25, 46, 16],
+
+      // 31
+      [13, 145, 115, 3, 146, 116],
+      [2, 74, 46, 29, 75, 47],
+      [42, 54, 24, 1, 55, 25],
+      [23, 45, 15, 28, 46, 16],
+
+      // 32
+      [17, 145, 115],
+      [10, 74, 46, 23, 75, 47],
+      [10, 54, 24, 35, 55, 25],
+      [19, 45, 15, 35, 46, 16],
+
+      // 33
+      [17, 145, 115, 1, 146, 116],
+      [14, 74, 46, 21, 75, 47],
+      [29, 54, 24, 19, 55, 25],
+      [11, 45, 15, 46, 46, 16],
+
+      // 34
+      [13, 145, 115, 6, 146, 116],
+      [14, 74, 46, 23, 75, 47],
+      [44, 54, 24, 7, 55, 25],
+      [59, 46, 16, 1, 47, 17],
+
+      // 35
+      [12, 151, 121, 7, 152, 122],
+      [12, 75, 47, 26, 76, 48],
+      [39, 54, 24, 14, 55, 25],
+      [22, 45, 15, 41, 46, 16],
+
+      // 36
+      [6, 151, 121, 14, 152, 122],
+      [6, 75, 47, 34, 76, 48],
+      [46, 54, 24, 10, 55, 25],
+      [2, 45, 15, 64, 46, 16],
+
+      // 37
+      [17, 152, 122, 4, 153, 123],
+      [29, 74, 46, 14, 75, 47],
+      [49, 54, 24, 10, 55, 25],
+      [24, 45, 15, 46, 46, 16],
+
+      // 38
+      [4, 152, 122, 18, 153, 123],
+      [13, 74, 46, 32, 75, 47],
+      [48, 54, 24, 14, 55, 25],
+      [42, 45, 15, 32, 46, 16],
+
+      // 39
+      [20, 147, 117, 4, 148, 118],
+      [40, 75, 47, 7, 76, 48],
+      [43, 54, 24, 22, 55, 25],
+      [10, 45, 15, 67, 46, 16],
+
+      // 40
+      [19, 148, 118, 6, 149, 119],
+      [18, 75, 47, 31, 76, 48],
+      [34, 54, 24, 34, 55, 25],
+      [20, 45, 15, 61, 46, 16]
+    ];
+
+    var qrRSBlock = function(totalCount, dataCount) {
+      var _this = {};
+      _this.totalCount = totalCount;
+      _this.dataCount = dataCount;
+      return _this;
+    };
+
+    var _this = {};
+
+    var getRsBlockTable = function(typeNumber, errorCorrectionLevel) {
+
+      switch(errorCorrectionLevel) {
+      case QRErrorCorrectionLevel.L :
+        return RS_BLOCK_TABLE[(typeNumber - 1) * 4 + 0];
+      case QRErrorCorrectionLevel.M :
+        return RS_BLOCK_TABLE[(typeNumber - 1) * 4 + 1];
+      case QRErrorCorrectionLevel.Q :
+        return RS_BLOCK_TABLE[(typeNumber - 1) * 4 + 2];
+      case QRErrorCorrectionLevel.H :
+        return RS_BLOCK_TABLE[(typeNumber - 1) * 4 + 3];
+      default :
+        return undefined;
+      }
+    };
+
+    _this.getRSBlocks = function(typeNumber, errorCorrectionLevel) {
+
+      var rsBlock = getRsBlockTable(typeNumber, errorCorrectionLevel);
+
+      if (typeof rsBlock == 'undefined') {
+        throw 'bad rs block @ typeNumber:' + typeNumber +
+            '/errorCorrectionLevel:' + errorCorrectionLevel;
+      }
+
+      var length = rsBlock.length / 3;
+
+      var list = [];
+
+      for (var i = 0; i < length; i += 1) {
+
+        var count = rsBlock[i * 3 + 0];
+        var totalCount = rsBlock[i * 3 + 1];
+        var dataCount = rsBlock[i * 3 + 2];
+
+        for (var j = 0; j < count; j += 1) {
+          list.push(qrRSBlock(totalCount, dataCount) );
+        }
+      }
+
+      return list;
+    };
+
+    return _this;
+  }();
+
+  //---------------------------------------------------------------------
+  // qrBitBuffer
+  //---------------------------------------------------------------------
+
+  var qrBitBuffer = function() {
+
+    var _buffer = [];
+    var _length = 0;
+
+    var _this = {};
+
+    _this.getBuffer = function() {
+      return _buffer;
+    };
+
+    _this.getAt = function(index) {
+      var bufIndex = Math.floor(index / 8);
+      return ( (_buffer[bufIndex] >>> (7 - index % 8) ) & 1) == 1;
+    };
+
+    _this.put = function(num, length) {
+      for (var i = 0; i < length; i += 1) {
+        _this.putBit( ( (num >>> (length - i - 1) ) & 1) == 1);
+      }
+    };
+
+    _this.getLengthInBits = function() {
+      return _length;
+    };
+
+    _this.putBit = function(bit) {
+
+      var bufIndex = Math.floor(_length / 8);
+      if (_buffer.length <= bufIndex) {
+        _buffer.push(0);
+      }
+
+      if (bit) {
+        _buffer[bufIndex] |= (0x80 >>> (_length % 8) );
+      }
+
+      _length += 1;
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // qrNumber
+  //---------------------------------------------------------------------
+
+  var qrNumber = function(data) {
+
+    var _mode = QRMode.MODE_NUMBER;
+    var _data = data;
+
+    var _this = {};
+
+    _this.getMode = function() {
+      return _mode;
+    };
+
+    _this.getLength = function(buffer) {
+      return _data.length;
+    };
+
+    _this.write = function(buffer) {
+
+      var data = _data;
+
+      var i = 0;
+
+      while (i + 2 < data.length) {
+        buffer.put(strToNum(data.substring(i, i + 3) ), 10);
+        i += 3;
+      }
+
+      if (i < data.length) {
+        if (data.length - i == 1) {
+          buffer.put(strToNum(data.substring(i, i + 1) ), 4);
+        } else if (data.length - i == 2) {
+          buffer.put(strToNum(data.substring(i, i + 2) ), 7);
+        }
+      }
+    };
+
+    var strToNum = function(s) {
+      var num = 0;
+      for (var i = 0; i < s.length; i += 1) {
+        num = num * 10 + chatToNum(s.charAt(i) );
+      }
+      return num;
+    };
+
+    var chatToNum = function(c) {
+      if ('0' <= c && c <= '9') {
+        return c.charCodeAt(0) - '0'.charCodeAt(0);
+      }
+      throw 'illegal char :' + c;
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // qrAlphaNum
+  //---------------------------------------------------------------------
+
+  var qrAlphaNum = function(data) {
+
+    var _mode = QRMode.MODE_ALPHA_NUM;
+    var _data = data;
+
+    var _this = {};
+
+    _this.getMode = function() {
+      return _mode;
+    };
+
+    _this.getLength = function(buffer) {
+      return _data.length;
+    };
+
+    _this.write = function(buffer) {
+
+      var s = _data;
+
+      var i = 0;
+
+      while (i + 1 < s.length) {
+        buffer.put(
+          getCode(s.charAt(i) ) * 45 +
+          getCode(s.charAt(i + 1) ), 11);
+        i += 2;
+      }
+
+      if (i < s.length) {
+        buffer.put(getCode(s.charAt(i) ), 6);
+      }
+    };
+
+    var getCode = function(c) {
+
+      if ('0' <= c && c <= '9') {
+        return c.charCodeAt(0) - '0'.charCodeAt(0);
+      } else if ('A' <= c && c <= 'Z') {
+        return c.charCodeAt(0) - 'A'.charCodeAt(0) + 10;
+      } else {
+        switch (c) {
+        case ' ' : return 36;
+        case '$' : return 37;
+        case '%' : return 38;
+        case '*' : return 39;
+        case '+' : return 40;
+        case '-' : return 41;
+        case '.' : return 42;
+        case '/' : return 43;
+        case ':' : return 44;
+        default :
+          throw 'illegal char :' + c;
+        }
+      }
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // qr8BitByte
+  //---------------------------------------------------------------------
+
+  var qr8BitByte = function(data) {
+
+    var _mode = QRMode.MODE_8BIT_BYTE;
+    var _data = data;
+    var _bytes = qrcode.stringToBytes(data);
+
+    var _this = {};
+
+    _this.getMode = function() {
+      return _mode;
+    };
+
+    _this.getLength = function(buffer) {
+      return _bytes.length;
+    };
+
+    _this.write = function(buffer) {
+      for (var i = 0; i < _bytes.length; i += 1) {
+        buffer.put(_bytes[i], 8);
+      }
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // qrKanji
+  //---------------------------------------------------------------------
+
+  var qrKanji = function(data) {
+
+    var _mode = QRMode.MODE_KANJI;
+    var _data = data;
+
+    var stringToBytes = qrcode.stringToBytesFuncs['SJIS'];
+    if (!stringToBytes) {
+      throw 'sjis not supported.';
+    }
+    !function(c, code) {
+      // self test for sjis support.
+      var test = stringToBytes(c);
+      if (test.length != 2 || ( (test[0] << 8) | test[1]) != code) {
+        throw 'sjis not supported.';
+      }
+    }('\u53cb', 0x9746);
+
+    var _bytes = stringToBytes(data);
+
+    var _this = {};
+
+    _this.getMode = function() {
+      return _mode;
+    };
+
+    _this.getLength = function(buffer) {
+      return ~~(_bytes.length / 2);
+    };
+
+    _this.write = function(buffer) {
+
+      var data = _bytes;
+
+      var i = 0;
+
+      while (i + 1 < data.length) {
+
+        var c = ( (0xff & data[i]) << 8) | (0xff & data[i + 1]);
+
+        if (0x8140 <= c && c <= 0x9FFC) {
+          c -= 0x8140;
+        } else if (0xE040 <= c && c <= 0xEBBF) {
+          c -= 0xC140;
+        } else {
+          throw 'illegal char at ' + (i + 1) + '/' + c;
+        }
+
+        c = ( (c >>> 8) & 0xff) * 0xC0 + (c & 0xff);
+
+        buffer.put(c, 13);
+
+        i += 2;
+      }
+
+      if (i < data.length) {
+        throw 'illegal char at ' + (i + 1);
+      }
+    };
+
+    return _this;
+  };
+
+  //=====================================================================
+  // GIF Support etc.
+  //
+
+  //---------------------------------------------------------------------
+  // byteArrayOutputStream
+  //---------------------------------------------------------------------
+
+  var byteArrayOutputStream = function() {
+
+    var _bytes = [];
+
+    var _this = {};
+
+    _this.writeByte = function(b) {
+      _bytes.push(b & 0xff);
+    };
+
+    _this.writeShort = function(i) {
+      _this.writeByte(i);
+      _this.writeByte(i >>> 8);
+    };
+
+    _this.writeBytes = function(b, off, len) {
+      off = off || 0;
+      len = len || b.length;
+      for (var i = 0; i < len; i += 1) {
+        _this.writeByte(b[i + off]);
+      }
+    };
+
+    _this.writeString = function(s) {
+      for (var i = 0; i < s.length; i += 1) {
+        _this.writeByte(s.charCodeAt(i) );
+      }
+    };
+
+    _this.toByteArray = function() {
+      return _bytes;
+    };
+
+    _this.toString = function() {
+      var s = '';
+      s += '[';
+      for (var i = 0; i < _bytes.length; i += 1) {
+        if (i > 0) {
+          s += ',';
+        }
+        s += _bytes[i];
+      }
+      s += ']';
+      return s;
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // base64EncodeOutputStream
+  //---------------------------------------------------------------------
+
+  var base64EncodeOutputStream = function() {
+
+    var _buffer = 0;
+    var _buflen = 0;
+    var _length = 0;
+    var _base64 = '';
+
+    var _this = {};
+
+    var writeEncoded = function(b) {
+      _base64 += String.fromCharCode(encode(b & 0x3f) );
+    };
+
+    var encode = function(n) {
+      if (n < 0) {
+        // error.
+      } else if (n < 26) {
+        return 0x41 + n;
+      } else if (n < 52) {
+        return 0x61 + (n - 26);
+      } else if (n < 62) {
+        return 0x30 + (n - 52);
+      } else if (n == 62) {
+        return 0x2b;
+      } else if (n == 63) {
+        return 0x2f;
+      }
+      throw 'n:' + n;
+    };
+
+    _this.writeByte = function(n) {
+
+      _buffer = (_buffer << 8) | (n & 0xff);
+      _buflen += 8;
+      _length += 1;
+
+      while (_buflen >= 6) {
+        writeEncoded(_buffer >>> (_buflen - 6) );
+        _buflen -= 6;
+      }
+    };
+
+    _this.flush = function() {
+
+      if (_buflen > 0) {
+        writeEncoded(_buffer << (6 - _buflen) );
+        _buffer = 0;
+        _buflen = 0;
+      }
+
+      if (_length % 3 != 0) {
+        // padding
+        var padlen = 3 - _length % 3;
+        for (var i = 0; i < padlen; i += 1) {
+          _base64 += '=';
+        }
+      }
+    };
+
+    _this.toString = function() {
+      return _base64;
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // base64DecodeInputStream
+  //---------------------------------------------------------------------
+
+  var base64DecodeInputStream = function(str) {
+
+    var _str = str;
+    var _pos = 0;
+    var _buffer = 0;
+    var _buflen = 0;
+
+    var _this = {};
+
+    _this.read = function() {
+
+      while (_buflen < 8) {
+
+        if (_pos >= _str.length) {
+          if (_buflen == 0) {
+            return -1;
+          }
+          throw 'unexpected end of file./' + _buflen;
+        }
+
+        var c = _str.charAt(_pos);
+        _pos += 1;
+
+        if (c == '=') {
+          _buflen = 0;
+          return -1;
+        } else if (c.match(/^\s$/) ) {
+          // ignore if whitespace.
+          continue;
+        }
+
+        _buffer = (_buffer << 6) | decode(c.charCodeAt(0) );
+        _buflen += 6;
+      }
+
+      var n = (_buffer >>> (_buflen - 8) ) & 0xff;
+      _buflen -= 8;
+      return n;
+    };
+
+    var decode = function(c) {
+      if (0x41 <= c && c <= 0x5a) {
+        return c - 0x41;
+      } else if (0x61 <= c && c <= 0x7a) {
+        return c - 0x61 + 26;
+      } else if (0x30 <= c && c <= 0x39) {
+        return c - 0x30 + 52;
+      } else if (c == 0x2b) {
+        return 62;
+      } else if (c == 0x2f) {
+        return 63;
+      } else {
+        throw 'c:' + c;
+      }
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // gifImage (B/W)
+  //---------------------------------------------------------------------
+
+  var gifImage = function(width, height) {
+
+    var _width = width;
+    var _height = height;
+    var _data = new Array(width * height);
+
+    var _this = {};
+
+    _this.setPixel = function(x, y, pixel) {
+      _data[y * _width + x] = pixel;
+    };
+
+    _this.write = function(out) {
+
+      //---------------------------------
+      // GIF Signature
+
+      out.writeString('GIF87a');
+
+      //---------------------------------
+      // Screen Descriptor
+
+      out.writeShort(_width);
+      out.writeShort(_height);
+
+      out.writeByte(0x80); // 2bit
+      out.writeByte(0);
+      out.writeByte(0);
+
+      //---------------------------------
+      // Global Color Map
+
+      // black
+      out.writeByte(0x00);
+      out.writeByte(0x00);
+      out.writeByte(0x00);
+
+      // white
+      out.writeByte(0xff);
+      out.writeByte(0xff);
+      out.writeByte(0xff);
+
+      //---------------------------------
+      // Image Descriptor
+
+      out.writeString(',');
+      out.writeShort(0);
+      out.writeShort(0);
+      out.writeShort(_width);
+      out.writeShort(_height);
+      out.writeByte(0);
+
+      //---------------------------------
+      // Local Color Map
+
+      //---------------------------------
+      // Raster Data
+
+      var lzwMinCodeSize = 2;
+      var raster = getLZWRaster(lzwMinCodeSize);
+
+      out.writeByte(lzwMinCodeSize);
+
+      var offset = 0;
+
+      while (raster.length - offset > 255) {
+        out.writeByte(255);
+        out.writeBytes(raster, offset, 255);
+        offset += 255;
+      }
+
+      out.writeByte(raster.length - offset);
+      out.writeBytes(raster, offset, raster.length - offset);
+      out.writeByte(0x00);
+
+      //---------------------------------
+      // GIF Terminator
+      out.writeString(';');
+    };
+
+    var bitOutputStream = function(out) {
+
+      var _out = out;
+      var _bitLength = 0;
+      var _bitBuffer = 0;
+
+      var _this = {};
+
+      _this.write = function(data, length) {
+
+        if ( (data >>> length) != 0) {
+          throw 'length over';
+        }
+
+        while (_bitLength + length >= 8) {
+          _out.writeByte(0xff & ( (data << _bitLength) | _bitBuffer) );
+          length -= (8 - _bitLength);
+          data >>>= (8 - _bitLength);
+          _bitBuffer = 0;
+          _bitLength = 0;
+        }
+
+        _bitBuffer = (data << _bitLength) | _bitBuffer;
+        _bitLength = _bitLength + length;
+      };
+
+      _this.flush = function() {
+        if (_bitLength > 0) {
+          _out.writeByte(_bitBuffer);
+        }
+      };
+
+      return _this;
+    };
+
+    var getLZWRaster = function(lzwMinCodeSize) {
+
+      var clearCode = 1 << lzwMinCodeSize;
+      var endCode = (1 << lzwMinCodeSize) + 1;
+      var bitLength = lzwMinCodeSize + 1;
+
+      // Setup LZWTable
+      var table = lzwTable();
+
+      for (var i = 0; i < clearCode; i += 1) {
+        table.add(String.fromCharCode(i) );
+      }
+      table.add(String.fromCharCode(clearCode) );
+      table.add(String.fromCharCode(endCode) );
+
+      var byteOut = byteArrayOutputStream();
+      var bitOut = bitOutputStream(byteOut);
+
+      // clear code
+      bitOut.write(clearCode, bitLength);
+
+      var dataIndex = 0;
+
+      var s = String.fromCharCode(_data[dataIndex]);
+      dataIndex += 1;
+
+      while (dataIndex < _data.length) {
+
+        var c = String.fromCharCode(_data[dataIndex]);
+        dataIndex += 1;
+
+        if (table.contains(s + c) ) {
+
+          s = s + c;
+
+        } else {
+
+          bitOut.write(table.indexOf(s), bitLength);
+
+          if (table.size() < 0xfff) {
+
+            if (table.size() == (1 << bitLength) ) {
+              bitLength += 1;
+            }
+
+            table.add(s + c);
+          }
+
+          s = c;
+        }
+      }
+
+      bitOut.write(table.indexOf(s), bitLength);
+
+      // end code
+      bitOut.write(endCode, bitLength);
+
+      bitOut.flush();
+
+      return byteOut.toByteArray();
+    };
+
+    var lzwTable = function() {
+
+      var _map = {};
+      var _size = 0;
+
+      var _this = {};
+
+      _this.add = function(key) {
+        if (_this.contains(key) ) {
+          throw 'dup key:' + key;
+        }
+        _map[key] = _size;
+        _size += 1;
+      };
+
+      _this.size = function() {
+        return _size;
+      };
+
+      _this.indexOf = function(key) {
+        return _map[key];
+      };
+
+      _this.contains = function(key) {
+        return typeof _map[key] != 'undefined';
+      };
+
+      return _this;
+    };
+
+    return _this;
+  };
+
+  var createDataURL = function(width, height, getPixel) {
+    var gif = gifImage(width, height);
+    for (var y = 0; y < height; y += 1) {
+      for (var x = 0; x < width; x += 1) {
+        gif.setPixel(x, y, getPixel(x, y) );
+      }
+    }
+
+    var b = byteArrayOutputStream();
+    gif.write(b);
+
+    var base64 = base64EncodeOutputStream();
+    var bytes = b.toByteArray();
+    for (var i = 0; i < bytes.length; i += 1) {
+      base64.writeByte(bytes[i]);
+    }
+    base64.flush();
+
+    return 'data:image/gif;base64,' + base64;
+  };
+
+  //---------------------------------------------------------------------
+  // returns qrcode function.
+
+  return qrcode;
+}();
+
+// multibyte support
+!function() {
+
+  qrcode.stringToBytesFuncs['UTF-8'] = function(s) {
+    // http://stackoverflow.com/questions/18729405/how-to-convert-utf8-string-to-byte-array
+    function toUTF8Array(str) {
+      var utf8 = [];
+      for (var i=0; i < str.length; i++) {
+        var charcode = str.charCodeAt(i);
+        if (charcode < 0x80) utf8.push(charcode);
+        else if (charcode < 0x800) {
+          utf8.push(0xc0 | (charcode >> 6),
+              0x80 | (charcode & 0x3f));
+        }
+        else if (charcode < 0xd800 || charcode >= 0xe000) {
+          utf8.push(0xe0 | (charcode >> 12),
+              0x80 | ((charcode>>6) & 0x3f),
+              0x80 | (charcode & 0x3f));
+        }
+        // surrogate pair
+        else {
+          i++;
+          // UTF-16 encodes 0x10000-0x10FFFF by
+          // subtracting 0x10000 and splitting the
+          // 20 bits of 0x0-0xFFFFF into two halves
+          charcode = 0x10000 + (((charcode & 0x3ff)<<10)
+            | (str.charCodeAt(i) & 0x3ff));
+          utf8.push(0xf0 | (charcode >>18),
+              0x80 | ((charcode>>12) & 0x3f),
+              0x80 | ((charcode>>6) & 0x3f),
+              0x80 | (charcode & 0x3f));
+        }
+      }
+      return utf8;
+    }
+    return toUTF8Array(s);
+  };
+
+}();
+
+(function (factory) {
+  if (typeof define === 'function' && define.amd) {
+      define([], factory);
+  } else if (typeof exports === 'object') {
+      module.exports = factory();
+  }
+}(function () {
+    return qrcode;
+}));
+
+</script>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const S = { photos: [], demo: false, target: 24, segDirty: true, result: null, busy: false,
+  q: 96, center: 'global' };
+const PROC = 640; // processing size (long side)
+
+/* ---------- downloads (artifact capability, with plain-link fallback outside claude.ai) ---------- */
+const dlP = (window.claude && typeof claude.use === 'function') ? claude.use('downloads').catch(() => null) : Promise.resolve(null);
+async function saveFile(name, data) {
+  const d = await Promise.race([dlP, new Promise(r => setTimeout(() => r(undefined), 1500))]);
+  if (d) {
+    try { await d.save({ filename: name, data }); toast('Saved ' + name); }
+    catch (e) { toast(e && e.code === 'declined' ? 'Download cancelled' : 'Could not save: ' + ((e && e.message) || 'unavailable')); }
+    return;
+  }
+  try {
+    const blob = data instanceof Blob ? data : new Blob([data]);
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    toast('Downloading ' + name);
+  } catch (e) { toast('Downloads are not available in this view'); }
+}
+let toastT; function toast(t) { const el = $('toast'); el.textContent = t; el.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('on'), 2600); }
+
+/* ---------- tabs ---------- */
+function showTab(id) {
+  document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', t.dataset.p === id));
+  document.querySelectorAll('#objectUI .pane').forEach(p => p.classList.toggle('on', p.id === id));
+  if (id === 'p2') runSegment();
+}
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => showTab(t.dataset.p)));
+
+/* ---------- photos ---------- */
+async function loadFile(file) {
+  let f35 = null;
+  try { f35 = Hulma.readF35(await file.slice(0, 262144).arrayBuffer()); } catch (e) { }
+  let src;
+  try { src = await createImageBitmap(file, { imageOrientation: 'from-image' }); }
+  catch (e) {
+    src = await new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => rej(new Error('Cannot read ' + file.name)); im.src = URL.createObjectURL(file); });
+  }
+  const W = src.width, Hh = src.height, s = Math.min(1, PROC / Math.max(W, Hh));
+  const w = Math.max(16, Math.round(W * s)), h = Math.max(16, Math.round(Hh * s));
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(src, 0, 0, w, h);
+  const id = g.getImageData(0, 0, w, h);
+  return { name: file.name, img: { width: w, height: h, data: id.data }, thumb: thumbURL(c), f35 };
+}
+function thumbURL(c) {
+  const t = document.createElement('canvas'), s = 160 / Math.max(c.width, c.height);
+  t.width = Math.round(c.width * s); t.height = Math.round(c.height * s);
+  t.getContext('2d').drawImage(c, 0, 0, t.width, t.height); return t.toDataURL('image/jpeg', 0.75);
+}
+async function addFiles(files, sort) {
+  if (!files.length) return;
+  if (S.demo) clearAll(true);
+  let list = [...files];
+  if (sort) list.sort((a, b) => (a.lastModified - b.lastModified) || a.name.localeCompare(b.name, undefined, { numeric: true }));
+  let bad = 0;
+  for (let i = 0; i < list.length; i++) {
+    $('photoCount').textContent = 'Reading photo ' + (i + 1) + ' of ' + list.length + '…';
+    try { S.photos.push(await loadFile(list[i])); } catch (e) { bad++; }
+    await Hulma.tick();
+  }
+  if (bad) toast(bad + ' photo(s) could not be read. Use JPEG or PNG.');
+  S.segDirty = true; renderPhotos();
+}
+$('camIn').addEventListener('change', e => { addFiles(e.target.files, false); e.target.value = ''; });
+$('galIn').addEventListener('change', e => { addFiles(e.target.files, true); e.target.value = ''; });
+function clearAll(silent) {
+  S.photos = []; S.demo = false; S.segDirty = true; S.result = null;
+  if (S.mode !== 'place') viewer.setMesh(null); setResult(null); renderPhotos(); $('masks').innerHTML = ''; $('maskSummary').textContent = '';
+  if (!silent) toast('Cleared. Take your first photo.');
+}
+$('newScan').addEventListener('click', () => clearAll(false));
+$('target').addEventListener('change', e => { S.target = +e.target.value; renderPlanner(); });
+
+function renderPhotos() {
+  $('demoNote').classList.toggle('hidden', !S.demo);
+  const g = $('thumbs'); g.innerHTML = '';
+  S.photos.forEach((p, i) => {
+    const d = document.createElement('div'); d.className = 'thumb';
+    d.innerHTML = '<img alt="Photo ' + (i + 1) + '"><span class="n">' + (i + 1) + '</span><button class="x" aria-label="Remove photo ' + (i + 1) + '">×</button>';
+    d.querySelector('img').src = p.thumb;
+    d.querySelector('.x').addEventListener('click', () => { S.photos.splice(i, 1); S.segDirty = true; if (S.demo) S.demo = false; renderPhotos(); });
+    g.appendChild(d);
+  });
+  const n = S.photos.length;
+  $('photoCount').innerHTML = n ? '<b>' + n + ' photo' + (n > 1 ? 's' : '') + '</b> in order. The app assumes they are spread evenly around a full circle.' + (n < 8 ? ' Add at least 8 (24 is better).' : '') : 'No photos yet.';
+  renderPlanner(); lensLabel();
+}
+function renderPlanner() {
+  const n = S.photos.length, T = S.target, k = n % T, c = $('ring'), g = c.getContext('2d');
+  const done = Math.min(n, T);
+  $('nextBig').textContent = n >= T ? 'Circle complete (' + n + ' photos)' : 'Photo ' + (n + 1) + ' of ' + T;
+  $('nextSub').textContent = n >= T ? 'Go to step 2 to check the cut-outs.' : (n === 0 ? 'Object at mark 1 (0°), facing the camera.' : 'Turn the object to mark ' + (k + 1) + ' (' + Math.round(k * 360 / T) + '°), same direction as before.');
+  g.clearRect(0, 0, 192, 192); const cx = 96, cy = 96, R = 78;
+  g.lineWidth = 2; g.strokeStyle = '#283540'; g.beginPath(); g.arc(cx, cy, R, 0, 7); g.stroke();
+  for (let i = 0; i < T; i++) {
+    const a = -Math.PI / 2 + i * 2 * Math.PI / T, x = cx + Math.cos(a) * R, y = cy + Math.sin(a) * R;
+    g.beginPath(); g.arc(x, y, i === k && n < T ? 9 : 5.5, 0, 7);
+    g.fillStyle = i < done ? '#ff7a2f' : (i === k && n < T ? '#3fd0c9' : '#1c252d');
+    g.fill(); if (i >= done) { g.strokeStyle = '#3a4a57'; g.lineWidth = 1.5; g.stroke(); }
+  }
+  g.fillStyle = '#e7edf1'; g.font = '600 28px "IBM Plex Mono", monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(String(n), cx, cy - 6); g.fillStyle = '#8b9aa7'; g.font = '13px "IBM Plex Sans", sans-serif'; g.fillText('of ' + T, cx, cy + 18);
+}
+
+/* ---------- masks ---------- */
+let segT;
+['thr', 'shadow'].forEach(id => $(id).addEventListener('input', () => {
+  $('thrO').textContent = $('thr').value; $('shadowO').textContent = $('shadow').value + '%';
+  S.segDirty = true; clearTimeout(segT); segT = setTimeout(runSegment, 220);
+}));
+function segOpts() { return { thr: +$('thr').value, lumaW: 1 - 0.97 * (+$('shadow').value) / 100 }; }
+let segRun = 0;
+async function runSegment() {
+  if (!S.segDirty || !S.photos.length) return;
+  const my = ++segRun, o = segOpts();
+  $('maskSummary').textContent = 'Cutting out ' + S.photos.length + ' photos…';
+  for (let i = 0; i < S.photos.length; i++) {
+    S.photos[i].seg = Hulma.segment(S.photos[i].img, o);
+    if (i % 3 === 2) { await Hulma.tick(); if (my !== segRun) return; }
+  }
+  S.segDirty = false; renderMasks();
+}
+function renderMasks() {
+  const g = $('masks'); g.innerHTML = ''; let warn = 0;
+  S.photos.forEach((p, i) => {
+    const { img } = p, sg = p.seg, w = img.width, h = img.height;
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const out = new ImageData(w, h), D = img.data, O = out.data, m = sg.mask;
+    for (let j = 0; j < w * h; j++) {
+      const k = j * 4;
+      if (m[j]) { O[k] = D[k] * 0.55 + 63 * 0.45; O[k + 1] = D[k + 1] * 0.55 + 208 * 0.45; O[k + 2] = D[k + 2] * 0.55 + 201 * 0.45; }
+      else { O[k] = D[k] * 0.28; O[k + 1] = D[k + 1] * 0.28; O[k + 2] = D[k + 2] * 0.28; }
+      O[k + 3] = 255;
+    }
+    c.getContext('2d').putImageData(out, 0, 0);
+    const frac = sg.area / (w * h);
+    const why = !sg.area ? 'empty' : sg.touches ? 'edge' : frac > 0.6 ? 'too big' : frac < 0.01 ? 'tiny' : '';
+    const d = document.createElement('div'); d.className = 'thumb' + (why ? ' warn' : '');
+    d.appendChild(c); d.insertAdjacentHTML('beforeend', '<span class="n">' + (i + 1) + '</span>' + (why ? '<span class="w">' + why + '</span>' : ''));
+    d.addEventListener('click', () => d.classList.toggle('big'));
+    if (why) warn++; g.appendChild(d);
+  });
+  $('maskSummary').innerHTML = warn ? '<b>' + warn + ' photo(s) flagged.</b> "edge" means the cut-out touches the photo border (background leaking in, or object out of frame). Raise the difference or shadow slider, or retake those.' : 'All cut-outs look reasonable. Check that each shows the whole object.';
+}
+
+/* ---------- build ---------- */
+function segBtns(id, key) {
+  $(id).querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+    $(id).querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); S[key] = isNaN(+b.dataset.v) ? b.dataset.v : +b.dataset.v;
+  }));
+}
+segBtns('quality', 'q'); segBtns('center', 'center');
+$('elMode').addEventListener('change', e => $('elO').textContent = e.target.value === 'auto' ? 'auto' : e.target.value + '°');
+function lensLabel() {
+  const fs = S.photos.map(p => p.f35).filter(Boolean);
+  $('lensO').textContent = $('lens').value !== 'auto' ? $('lens').value + 'mm' : fs.length ? fs.sort((a, b) => a - b)[fs.length >> 1] + 'mm found' : '26mm assumed';
+}
+$('lens').addEventListener('change', lensLabel);
+async function build() {
+  if (S.busy) return;
+  if (S.photos.length < 6) { toast('Add at least 6 photos first (24 is better).'); showTab('p1'); return; }
+  S.busy = true; $('buildBtn').disabled = true;
+  const st = (t, p) => { $('buildStatus').textContent = t; $('bar').style.width = Math.round((p || 0) * 100) + '%'; };
+  try {
+    st('Cutting out photos…', 0.01); await Hulma.tick();
+    if (S.segDirty) { const o = segOpts(); for (const p of S.photos) { p.seg = Hulma.segment(p.img, o); await Hulma.tick(); } S.segDirty = false; renderMasks(); }
+    const lens = $('lens').value, strict = $('strict').value, el = $('elMode').value;
+    const views = S.photos.map(p => ({ img: p.img, mask: p.seg.mask, bbox: p.seg.bbox, f35: lens === 'auto' ? (p.f35 || 26) : +lens }));
+    const t0 = performance.now();
+    const res = await Hulma.reconstruct(views, { N: S.q, el: el === 'auto' ? null : +el, dir: +$('dir').value, center: S.center, allowMiss: strict === 'auto' ? null : +strict }, st);
+    res.ms = performance.now() - t0; S.result = res;
+    if (S.mode !== 'place') viewer.setMesh(res.mesh, res.cams);
+    setResult(res);
+    st('Done in ' + (res.ms / 1000).toFixed(1) + ' s', 1);
+  } catch (e) { st(e.message || String(e), 0); console.error(e); }
+  S.busy = false; $('buildBtn').disabled = false;
+}
+$('buildBtn').addEventListener('click', build);
+function setResult(r) {
+  $('zipBtn').disabled = $('shotBtn').disabled = $('objAR').disabled = !r;
+  if (!r) { $('result').innerHTML = ''; $('resultNote').textContent = ''; $('vbadge').textContent = 'No model yet'; $('vstats').textContent = ''; return; }
+  const fit = r.coverage, cls = fit > 0.85 ? 'good' : fit > 0.7 ? 'ok' : 'bad', lab = cls === 'good' ? 'good' : cls === 'ok' ? 'fair' : 'poor';
+  const nv = r.mesh.pos.length / 3, nt = r.mesh.idx.length / 3;
+  $('result').innerHTML =
+    '<div class="kv"><span>Silhouette fit</span><strong>' + Math.round(fit * 100) + '%</strong><span class="pill ' + cls + '">' + lab + '</span></div>' +
+    '<div class="kv"><span>Camera height</span><strong>' + Math.round(r.el) + '°</strong></div>' +
+    '<div class="kv"><span>Turn direction</span><strong>' + (r.dir > 0 ? 'CCW' : 'CW') + '</strong></div>' +
+    '<div class="kv"><span>Triangles</span><strong>' + nt.toLocaleString() + '</strong></div>';
+  $('resultNote').textContent = cls === 'good' ? 'The shape agrees with your photos. Spin it around, then export in step 4.' :
+    'The shape only partly agrees with the photos. Try: fix flagged cut-outs in step 2, set the turn direction or camera height by hand, or switch "How you shot it".';
+  if (S.mode === 'place') return;
+  $('vbadge').textContent = S.demo ? 'Example model' : 'Your model';
+  $('vstats').textContent = nv.toLocaleString() + ' pts · ' + S.photos.length + ' photos';
+}
+
+/* ---------- export ---------- */
+$('zipBtn').addEventListener('click', async () => {
+  const r = S.result; if (!r) return;
+  const h = Math.max(0.1, +$('height').value || 10), base = ($('fname').value || 'hulma-model').replace(/[^\w\-]+/g, '-');
+  $('zipBtn').disabled = true; toast('Packing files…'); await Hulma.tick();
+  const readme = 'Hulma 3D export\n\nmodel.glb  real-size mesh in metres with colours (AR apps, Windows 3D Viewer, Blender, model-viewer)\nmodel.obj  mesh with per-vertex colours (Blender, MeshLab, most 3D viewers)\nmodel.ply  same mesh, binary, with colours\nmodel.stl  for 3D printing slicers (no colour)\n\nUnits: centimetres. Object height: ' + h + ' cm.\nPhotos used: ' + S.photos.length + '. Camera height ' + Math.round(r.el) + ' deg. Silhouette fit ' + Math.round(r.coverage * 100) + '%.\n';
+  const zip = Hulma.zip([{ name: 'model.glb', data: Hulma.toGLB(Hulma.finalMesh(r.mesh, h / 100)) }, { name: 'model.obj', data: Hulma.toOBJ(r.mesh, h) }, { name: 'model.ply', data: Hulma.toPLY(r.mesh, h) }, { name: 'model.stl', data: Hulma.toSTL(r.mesh, h) }, { name: 'README.txt', data: readme }]);
+  await saveFile(base + '.zip', new Blob([zip], { type: 'application/zip' }));
+  $('zipBtn').disabled = false;
+});
+$('shotBtn').addEventListener('click', () => {
+  viewer.draw(); $('gl').toBlob(b => b && saveFile((($('fname').value || 'hulma-model').replace(/[^\w\-]+/g, '-')) + '.png', b), 'image/png');
+});
+$('matBtn').addEventListener('click', () => {
+  const T = S.target, c = document.createElement('canvas'); c.width = c.height = 2000; const g = c.getContext('2d');
+  g.fillStyle = '#fff'; g.fillRect(0, 0, 2000, 2000); const cx = 1000, cy = 1040, R = 860;
+  g.strokeStyle = '#bbb'; g.lineWidth = 3; g.beginPath(); g.arc(cx, cy, R, 0, 7); g.stroke();
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  for (let i = 0; i < T; i++) {
+    const a = Math.PI / 2 + i * 2 * Math.PI / T; // mark 1 at the bottom (towards the camera)
+    const x1 = cx + Math.cos(a) * R, y1 = cy + Math.sin(a) * R, x0 = cx + Math.cos(a) * (R - 70), y0 = cy + Math.sin(a) * (R - 70);
+    g.strokeStyle = i === 0 ? '#e0601a' : '#999'; g.lineWidth = i === 0 ? 8 : 4; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
+    g.fillStyle = i === 0 ? '#e0601a' : '#888'; g.font = (i === 0 ? '700 ' : '500 ') + (T > 36 ? 30 : 40) + 'px sans-serif';
+    g.fillText(String(i + 1), cx + Math.cos(a) * (R + 50), cy + Math.sin(a) * (R + 50));
+  }
+  g.strokeStyle = '#ccc'; g.lineWidth = 2; g.beginPath(); g.moveTo(cx - 40, cy); g.lineTo(cx + 40, cy); g.moveTo(cx, cy - 40); g.lineTo(cx, cy + 40); g.stroke();
+  g.fillStyle = '#777'; g.font = '500 34px sans-serif';
+  g.fillText('Hulma 3D turntable mat · ' + T + ' stops · ' + (360 / T).toFixed(1) + '° each', cx, 60);
+  g.font = '28px sans-serif'; g.fillText('Object in the centre. Mark 1 faces the camera. Turn the mat one number per photo, always the same way.', cx, 110);
+  c.toBlob(b => saveFile('hulma-turntable-mat-' + T + '.png', b), 'image/png');
+});
+
+/* ---------- WebGL viewer ---------- */
+function Viewer(canvas) {
+  const gl = canvas.getContext('webgl', { antialias: true, preserveDrawingBuffer: true });
+  const self = { yaw: 0.5, pitch: 0.3, dist: 3.3, spin: true, clay: false, cams: false, mesh: null, minD: 1.4 };
+  if (!gl) { $('vempty').textContent = 'This browser cannot show 3D (WebGL is off). You can still export the model.'; self.setMesh = () => { }; self.draw = () => { }; return self; }
+  const u32 = gl.getExtension('OES_element_index_uint');
+  const sh = (t, s) => { const o = gl.createShader(t); gl.shaderSource(o, s); gl.compileShader(o); return o; };
+  const pr = gl.createProgram();
+  gl.attachShader(pr, sh(gl.VERTEX_SHADER, 'attribute vec3 aP;attribute vec3 aN;attribute vec3 aC;uniform mat4 uM;uniform float uPs;varying vec3 vN;varying vec3 vC;void main(){vN=aN;vC=aC;gl_Position=uM*vec4(aP,1.);gl_PointSize=uPs;}'));
+  gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, 'precision mediump float;varying vec3 vN;varying vec3 vC;uniform vec3 uL;uniform float uClay;uniform float uFlat;void main(){vec3 n=normalize(vN);if(!gl_FrontFacing)n=-n;float d=max(dot(n,uL),0.);vec3 clay=vec3(.82,.77,.70);vec3 c=uClay>.5?clay*(.30+.80*d):vC*(.72+.38*d);if(uFlat>.5)c=vC;gl_FragColor=vec4(c,1.);}'));
+  gl.linkProgram(pr); gl.useProgram(pr);
+  const A = { P: gl.getAttribLocation(pr, 'aP'), N: gl.getAttribLocation(pr, 'aN'), C: gl.getAttribLocation(pr, 'aC') };
+  const U = { M: gl.getUniformLocation(pr, 'uM'), L: gl.getUniformLocation(pr, 'uL'), clay: gl.getUniformLocation(pr, 'uClay'), flat: gl.getUniformLocation(pr, 'uFlat'), ps: gl.getUniformLocation(pr, 'uPs') };
+  const buf = (data, el) => { const b = gl.createBuffer(); gl.bindBuffer(el ? gl.ELEMENT_ARRAY_BUFFER : gl.ARRAY_BUFFER, b); gl.bufferData(el ? gl.ELEMENT_ARRAY_BUFFER : gl.ARRAY_BUFFER, data, gl.STATIC_DRAW); return b; };
+  let G = null;
+  self.setMesh = (mesh, cams) => {
+    G = null; self.minD = 1.4; self.dist = Math.max(self.dist, 1.4); $('vempty').classList.toggle('hidden', !!mesh);
+    if (!mesh) { self.draw(); return; }
+    const P = mesh.wpos, nv = P.length / 3; let lo = [1e9, 1e9, 1e9], hi = [-1e9, -1e9, -1e9];
+    for (let i = 0; i < nv; i++) for (let k = 0; k < 3; k++) { const v = P[i * 3 + k]; if (v < lo[k]) lo[k] = v; if (v > hi[k]) hi[k] = v; }
+    const c = [0, 1, 2].map(k => (lo[k] + hi[k]) / 2), s = 1 / Math.max(1e-6, ...[0, 1, 2].map(k => (hi[k] - lo[k]) / 2));
+    const Q = new Float32Array(nv * 3); for (let i = 0; i < nv; i++) for (let k = 0; k < 3; k++) Q[i * 3 + k] = (P[i * 3 + k] - c[k]) * s;
+    let idx = mesh.idx, type = gl.UNSIGNED_INT;
+    if (!u32) { if (nv > 65535) { toast('Model too detailed for this browser\'s viewer; export still works.'); idx = new Uint16Array(0); } else idx = new Uint16Array(mesh.idx); type = gl.UNSIGNED_SHORT; }
+    G = { p: buf(Q), n: buf(mesh.nrm), c: buf(mesh.col), i: buf(idx, true), count: idx.length, type };
+    if (cams) { const cp = new Float32Array(cams.length * 3); cams.forEach((cm, i) => { for (let k = 0; k < 3; k++) cp[i * 3 + k] = (cm.C[k] - c[k]) * s; }); G.cp = buf(cp); G.cn = cams.length; G.camR = Math.hypot(cp[0], cp[1], cp[2]); }
+    self.draw();
+  };
+  self.setPoints = pc => {
+    G = null; $('vempty').classList.toggle('hidden', !!pc);
+    if (!pc) { self.draw(); return; }
+    const P = pc.pos, nv = P.length / 3; let lo = [1e9, 1e9, 1e9], hi = [-1e9, -1e9, -1e9];
+    for (let i = 0; i < nv; i++) for (let k = 0; k < 3; k++) { const v = P[i * 3 + k]; if (v < lo[k]) lo[k] = v; if (v > hi[k]) hi[k] = v; }
+    const c = [0, 1, 2].map(k => (lo[k] + hi[k]) / 2), s = 1 / Math.max(1e-6, ...[0, 1, 2].map(k => (hi[k] - lo[k]) / 2));
+    const Q = new Float32Array(nv * 3); for (let i = 0; i < nv; i++) for (let k = 0; k < 3; k++) Q[i * 3 + k] = (P[i * 3 + k] - c[k]) * s;
+    self.minD = 0.35;
+    G = { points: true, p: buf(Q), c: buf(pc.col), count: nv, ps: Math.max(1.5, pc.vox * s * 260) };
+    self.draw();
+  };
+  const persp = (fy, a, n, f) => { const t = 1 / Math.tan(fy / 2); return [t / a, 0, 0, 0, 0, t, 0, 0, 0, 0, (f + n) / (n - f), -1, 0, 0, 2 * f * n / (n - f), 0]; };
+  const look = (e, t, up) => {
+    const z = norm3([e[0] - t[0], e[1] - t[1], e[2] - t[2]]), x = norm3(cr3(up, z)), y = cr3(z, x);
+    return [x[0], y[0], z[0], 0, x[1], y[1], z[1], 0, x[2], y[2], z[2], 0, -(x[0] * e[0] + x[1] * e[1] + x[2] * e[2]), -(y[0] * e[0] + y[1] * e[1] + y[2] * e[2]), -(z[0] * e[0] + z[1] * e[1] + z[2] * e[2]), 1];
+  };
+  const mul = (a, b) => { const o = new Array(16); for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) { let s = 0; for (let k = 0; k < 4; k++) s += a[k * 4 + j] * b[i * 4 + k]; o[i * 4 + j] = s; } return o; };
+  function norm3(v) { const l = Math.hypot(...v) || 1; return [v[0] / l, v[1] / l, v[2] / l]; }
+  function cr3(a, b) { return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]; }
+  self.draw = () => {
+    const dpr = Math.min(2, window.devicePixelRatio || 1), W = Math.round(canvas.clientWidth * dpr), Hh = Math.round(canvas.clientHeight * dpr);
+    if (canvas.width !== W || canvas.height !== Hh) { canvas.width = W; canvas.height = Hh; }
+    gl.viewport(0, 0, W, Hh); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); gl.enable(gl.DEPTH_TEST);
+    if (!G) return;
+    const dist = self.cams && G.camR ? Math.max(self.dist, G.camR * 2.3) : self.dist;
+    const e = [dist * Math.cos(self.pitch) * Math.sin(self.yaw), dist * Math.sin(self.pitch), dist * Math.cos(self.pitch) * Math.cos(self.yaw)];
+    const M = mul(persp(0.75, W / Math.max(1, Hh), 0.05, 100), look(e, [0, 0, 0], [0, 1, 0]));
+    gl.uniformMatrix4fv(U.M, false, new Float32Array(M));
+    const f = norm3(e), r = norm3(cr3([0, 1, 0], f)), L = norm3([f[0] + 0.5 * 0 - 0.35 * r[0], f[1] + 0.6 - 0.35 * r[1], f[2] - 0.35 * r[2]]);
+    gl.uniform3fv(U.L, L); gl.uniform1f(U.clay, self.clay ? 1 : 0); gl.uniform1f(U.flat, 0); gl.uniform1f(U.ps, 1);
+    if (G.points) {
+      gl.uniform1f(U.flat, 1); gl.uniform1f(U.ps, Math.min(14, G.ps * dpr * 3.3 / dist));
+      gl.bindBuffer(gl.ARRAY_BUFFER, G.p); gl.enableVertexAttribArray(A.P); gl.vertexAttribPointer(A.P, 3, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, G.c); gl.enableVertexAttribArray(A.C); gl.vertexAttribPointer(A.C, 3, gl.UNSIGNED_BYTE, true, 0, 0);
+      gl.disableVertexAttribArray(A.N); gl.vertexAttrib3f(A.N, 0, 1, 0);
+      gl.drawArrays(gl.POINTS, 0, G.count); return;
+    }
+    gl.enableVertexAttribArray(A.N);
+    gl.bindBuffer(gl.ARRAY_BUFFER, G.p); gl.enableVertexAttribArray(A.P); gl.vertexAttribPointer(A.P, 3, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, G.n); gl.enableVertexAttribArray(A.N); gl.vertexAttribPointer(A.N, 3, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, G.c); gl.enableVertexAttribArray(A.C); gl.vertexAttribPointer(A.C, 3, gl.UNSIGNED_BYTE, true, 0, 0);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, G.i); gl.drawElements(gl.TRIANGLES, G.count, G.type, 0);
+    if (self.cams && G.cp) {
+      gl.uniform1f(U.flat, 1); gl.uniform1f(U.ps, 9 * dpr);
+      gl.bindBuffer(gl.ARRAY_BUFFER, G.cp); gl.vertexAttribPointer(A.P, 3, gl.FLOAT, false, 0, 0);
+      gl.disableVertexAttribArray(A.N); gl.disableVertexAttribArray(A.C); gl.vertexAttrib3f(A.N, 0, 1, 0);
+      gl.vertexAttrib3f(A.C, 0.25, 0.82, 0.79); gl.drawArrays(gl.LINE_LOOP, 0, G.cn);
+      gl.vertexAttrib3f(A.C, 1, 0.48, 0.18); gl.drawArrays(gl.POINTS, 0, G.cn);
+    }
+  };
+  // orbit controls
+  const pts = new Map(); let pinch = 0, idleT = 0;
+  canvas.addEventListener('pointerdown', e => { canvas.setPointerCapture(e.pointerId); pts.set(e.pointerId, [e.clientX, e.clientY]); idleT = performance.now(); });
+  canvas.addEventListener('pointermove', e => {
+    if (!pts.has(e.pointerId)) return; const p = pts.get(e.pointerId), dx = e.clientX - p[0], dy = e.clientY - p[1];
+    pts.set(e.pointerId, [e.clientX, e.clientY]); idleT = performance.now();
+    if (pts.size === 1) { self.yaw -= dx * 0.008; self.pitch = Math.max(-1.45, Math.min(1.45, self.pitch + dy * 0.008)); }
+    else if (pts.size === 2) { const [a, b] = [...pts.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (pinch) self.dist = Math.max(self.minD, Math.min(12, self.dist * pinch / d)); pinch = d; }
+    self.draw();
+  });
+  const up = e => { pts.delete(e.pointerId); if (pts.size < 2) pinch = 0; };
+  canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
+  canvas.addEventListener('wheel', e => { e.preventDefault(); self.dist = Math.max(self.minD, Math.min(12, self.dist * Math.exp(e.deltaY * 0.0012))); idleT = performance.now(); self.draw(); }, { passive: false });
+  const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduce) self.spin = false;
+  let last = performance.now();
+  (function loop(t) {
+    const dt = Math.min(0.05, (t - last) / 1000); last = t;
+    if (self.spin && G && !pts.size && t - idleT > 1500) { self.yaw += dt * 0.45; self.draw(); }
+    requestAnimationFrame(loop);
+  })(last);
+  window.addEventListener('resize', () => self.draw());
+  return self;
+}
+const viewer = Viewer($('gl'));
+const press = (id, on) => $(id).setAttribute('aria-pressed', on);
+$('vColor').addEventListener('click', () => { viewer.clay = false; press('vColor', true); press('vClay', false); viewer.draw(); });
+$('vClay').addEventListener('click', () => { viewer.clay = true; press('vColor', false); press('vClay', true); viewer.draw(); });
+$('vSpin').addEventListener('click', () => { viewer.spin = !viewer.spin; press('vSpin', viewer.spin); });
+$('vCams').addEventListener('click', () => { viewer.cams = !viewer.cams; press('vCams', viewer.cams); viewer.draw(); });
+$('vReset').addEventListener('click', () => { viewer.yaw = 0.5; viewer.pitch = 0.3; viewer.dist = 3.3; viewer.draw(); });
+if (!viewer.spin) press('vSpin', false);
+
+/* ---------- WebXR: AR placement + place scanning ---------- */
+const XRM = (() => {
+  const st = { session: null, gl: null, mode: null, ref: null, hitSrc: null, reticle: null, placed: false, pos: [0, 0, 0], yaw: 0, rot: 0, scale: 1,
+    model: null, G: null, binding: null, fbo: null, px: null, cw: 0, ch: 0, cloud: null, lastCap: 0, paused: false, ptsCap: 0, ptsN: 0, onDone: null, lastUI: 0, viewer: [0, 0, 0], err: '' };
+  const framed = (() => { try { return window.self !== window.top; } catch (e) { return true; } })();
+  async function status() {
+    if (framed) return { ok: false, why: 'framed' };
+    if (!window.isSecureContext) return { ok: false, why: 'http' };
+    if (!navigator.xr) return { ok: false, why: 'noxr' };
+    let ok = false; try { ok = await navigator.xr.isSessionSupported('immersive-ar'); } catch (e) { }
+    return ok ? { ok: true } : { ok: false, why: 'noar' };
+  }
+  const WHY = {
+    framed: 'AR can\'t start inside the Claude app\'s preview. Install the <b>Hulma 3D app</b> (see Get the app at the bottom) or open the web app link in <b>Chrome on your Android phone</b>.',
+    http: 'AR needs a secure (https) page. GitHub Pages links are https.',
+    noxr: 'This browser has no AR support. Use <b>Chrome on Android</b> with Google Play Services for AR installed. iPhone Safari does not support web AR yet.',
+    noar: 'This phone or browser can\'t run web AR. It needs Chrome on an ARCore-supported Android phone with Google Play Services for AR.'
+  };
+  /* matrices, column-major */
+  const mul = (a, b) => { const o = new Float32Array(16); for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) { let s = 0; for (let k = 0; k < 4; k++) s += a[k * 4 + j] * b[i * 4 + k]; o[i * 4 + j] = s; } return o; };
+  const trs = (p, yaw, s) => { const c = Math.cos(yaw) * s, n = Math.sin(yaw) * s; return new Float32Array([c, 0, -n, 0, 0, s, 0, 0, n, 0, c, 0, p[0], p[1], p[2], 1]); };
+  const I4 = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+  function inv4(m) {
+    const a = m, o = new Float32Array(16);
+    const b00 = a[0] * a[5] - a[1] * a[4], b01 = a[0] * a[6] - a[2] * a[4], b02 = a[0] * a[7] - a[3] * a[4], b03 = a[1] * a[6] - a[2] * a[5], b04 = a[1] * a[7] - a[3] * a[5], b05 = a[2] * a[7] - a[3] * a[6];
+    const b06 = a[8] * a[13] - a[9] * a[12], b07 = a[8] * a[14] - a[10] * a[12], b08 = a[8] * a[15] - a[11] * a[12], b09 = a[9] * a[14] - a[10] * a[13], b10 = a[9] * a[15] - a[11] * a[13], b11 = a[10] * a[15] - a[11] * a[14];
+    let d = b00 * b11 - b01 * b10 + b02 * b09 + b03 * b08 - b04 * b07 + b05 * b06; if (!d) return I4; d = 1 / d;
+    o[0] = (a[5] * b11 - a[6] * b10 + a[7] * b09) * d; o[1] = (a[2] * b10 - a[1] * b11 - a[3] * b09) * d; o[2] = (a[13] * b05 - a[14] * b04 + a[15] * b03) * d; o[3] = (a[10] * b04 - a[9] * b05 - a[11] * b03) * d;
+    o[4] = (a[6] * b08 - a[4] * b11 - a[7] * b07) * d; o[5] = (a[0] * b11 - a[2] * b08 + a[3] * b07) * d; o[6] = (a[14] * b02 - a[12] * b05 - a[15] * b01) * d; o[7] = (a[8] * b05 - a[10] * b02 + a[11] * b01) * d;
+    o[8] = (a[4] * b10 - a[5] * b08 + a[7] * b06) * d; o[9] = (a[1] * b08 - a[0] * b10 - a[3] * b06) * d; o[10] = (a[12] * b04 - a[13] * b02 + a[15] * b00) * d; o[11] = (a[9] * b02 - a[8] * b04 - a[11] * b00) * d;
+    o[12] = (a[5] * b07 - a[4] * b09 - a[6] * b06) * d; o[13] = (a[0] * b09 - a[1] * b07 + a[2] * b06) * d; o[14] = (a[13] * b01 - a[12] * b03 - a[14] * b00) * d; o[15] = (a[8] * b03 - a[9] * b01 + a[10] * b00) * d;
+    return o;
+  }
+  function initGL() {
+    if (st.gl) return st.gl;
+    const c = document.createElement('canvas');
+    const gl = c.getContext('webgl', { xrCompatible: true, alpha: true, antialias: true });
+    if (!gl) throw new Error('WebGL is not available.');
+    gl.getExtension('OES_element_index_uint');
+    const mk = (vs, fs, attrs, unis) => {
+      const p = gl.createProgram();
+      for (const [t, s] of [[gl.VERTEX_SHADER, vs], [gl.FRAGMENT_SHADER, fs]]) { const o = gl.createShader(t); gl.shaderSource(o, s); gl.compileShader(o); gl.attachShader(p, o); }
+      gl.linkProgram(p); const r = { p, a: {}, u: {} };
+      attrs.forEach(n => r.a[n] = gl.getAttribLocation(p, n)); unis.forEach(n => r.u[n] = gl.getUniformLocation(p, n)); return r;
+    };
+    st.pm = mk('attribute vec3 aP;attribute vec3 aN;attribute vec3 aC;uniform mat4 uP;uniform mat4 uV;uniform mat4 uM;varying vec3 vN;varying vec3 vC;void main(){vN=(uM*vec4(aN,0.)).xyz;vC=aC;gl_Position=uP*uV*uM*vec4(aP,1.);}',
+      'precision mediump float;varying vec3 vN;varying vec3 vC;uniform vec3 uL;void main(){vec3 n=normalize(vN);if(!gl_FrontFacing)n=-n;float d=max(dot(n,uL),0.);gl_FragColor=vec4(vC*(.62+.45*d),1.);}',
+      ['aP', 'aN', 'aC'], ['uP', 'uV', 'uM', 'uL']);
+    st.pp = mk('attribute vec3 aP;attribute vec3 aC;uniform mat4 uP;uniform mat4 uV;uniform mat4 uM;uniform float uPs;varying vec3 vC;void main(){vC=aC;vec4 p=uP*uV*uM*vec4(aP,1.);gl_Position=p;gl_PointSize=clamp(uPs/max(p.w,.05),1.5,28.);}',
+      'precision mediump float;varying vec3 vC;void main(){gl_FragColor=vec4(vC,1.);}', ['aP', 'aC'], ['uP', 'uV', 'uM', 'uPs']);
+    st.pb = mk('attribute vec2 aQ;varying vec2 vU;void main(){vU=aQ*.5+.5;gl_Position=vec4(aQ,0.,1.);}',
+      'precision mediump float;varying vec2 vU;uniform sampler2D uT;void main(){gl_FragColor=texture2D(uT,vU);}', ['aQ'], ['uT']);
+    st.quad = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, st.quad); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+    const ring = []; for (let i = 0; i < 48; i++) { const a = i / 48 * Math.PI * 2; ring.push(Math.cos(a) * 0.09, 0, Math.sin(a) * 0.09); }
+    st.ring = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, st.ring); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(ring), gl.STATIC_DRAW);
+    st.gl = gl; return gl;
+  }
+  function use(prog) { const gl = st.gl; for (let i = 0; i < 6; i++) gl.disableVertexAttribArray(i); gl.useProgram(prog.p); }
+  function attr(loc, b, n, type, normd) { if (loc < 0) return; const gl = st.gl; gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, n, type || gl.FLOAT, !!normd, 0, 0); }
+  function msg(t) { $('xrMsg').innerHTML = t; }
+  function showOverlay(mode) {
+    $('xrOverlay').classList.remove('hidden');
+    $('xrViewCtl').classList.add('hidden'); $('xrScanCtl').classList.toggle('hidden', mode !== 'scan');
+  }
+  function hideOverlay() { $('xrOverlay').classList.add('hidden'); }
+  async function begin(session, mode) {
+    const gl = st.gl;
+    st.session = session; st.mode = mode;
+    await gl.makeXRCompatible();
+    session.updateRenderState({ baseLayer: new XRWebGLLayer(session, gl) });
+    st.ref = await session.requestReferenceSpace('local');
+    session.addEventListener('end', onEnd);
+    session.requestAnimationFrame(onFrame);
+  }
+  function onEnd() {
+    const mode = st.mode; st.session = null; st.hitSrc = null; st.binding = null; hideOverlay();
+    if (mode === 'scan' && st.cloud && st.onDone) {
+      let out = st.cloud.export(2); if (out.pos.length < st.cloud.n * 0.3 * 3) out = st.cloud.export(1);
+      const cb = st.onDone; st.onDone = null; st.cloud = null; if (out.pos.length) cb(out); else toast('No depth points were captured.');
+    }
+    st.mode = null;
+  }
+
+  /* ----- AR view: place a model on a real surface ----- */
+  async function startView(model) {
+    const gl = initGL(); const G = {};
+    if (model.kind === 'mesh') {
+      G.p = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, G.p); gl.bufferData(gl.ARRAY_BUFFER, model.pos, gl.STATIC_DRAW);
+      G.n = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, G.n); gl.bufferData(gl.ARRAY_BUFFER, model.nrm, gl.STATIC_DRAW);
+      G.c = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, G.c); gl.bufferData(gl.ARRAY_BUFFER, model.col, gl.STATIC_DRAW);
+      G.i = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, G.i); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(model.idx), gl.STATIC_DRAW); G.count = model.idx.length;
+    } else {
+      G.p = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, G.p); gl.bufferData(gl.ARRAY_BUFFER, model.pos, gl.STATIC_DRAW);
+      G.c = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, G.c); gl.bufferData(gl.ARRAY_BUFFER, model.col, gl.STATIC_DRAW); G.count = model.pos.length / 3;
+    }
+    st.G = G; st.model = model; st.placed = false; st.reticle = null; st.rot = 0; st.scale = model.defaultScale;
+    $('xrRot').value = 0; setSizeUI();
+    showOverlay('view'); msg('Point the camera at the floor or a table and move it slowly until the ring appears.');
+    let session;
+    try {
+      session = await navigator.xr.requestSession('immersive-ar', { requiredFeatures: ['hit-test'], optionalFeatures: ['dom-overlay', 'local-floor'], domOverlay: { root: $('xrOverlay') } });
+    } catch (e) { hideOverlay(); throw new Error('AR could not start: ' + (e.message || e)); }
+    await begin(session, 'view');
+    const vs = await session.requestReferenceSpace('viewer');
+    st.hitSrc = await session.requestHitTestSource({ space: vs });
+    session.addEventListener('select', () => {
+      if (!st.reticle) return;
+      const m = st.reticle; st.pos = [m[12], m[13], m[14]];
+      st.yaw = Math.atan2(st.viewer[0] - st.pos[0], st.viewer[2] - st.pos[2]);
+      if (!st.placed) { st.placed = true; $('xrViewCtl').classList.remove('hidden'); }
+      msg('Placed. Tap another spot to move it. Use the sliders to turn and resize.');
+    });
+  }
+  function setSizeUI() {
+    const s = st.scale; $('xrSize').value = Math.round(Math.log10(s) * 100);
+    $('xrSizeO').textContent = s >= 0.995 && s <= 1.005 ? 'real size' : s < 1 ? '1:' + Math.round(1 / s) : Math.round(s * 100) + '%';
+  }
+  /* ----- place scan: depth + camera colour into a voxel point cloud ----- */
+  async function startScan(opts, onDone) {
+    const gl = initGL();
+    st.cloud = new Hulma.PointCloud(opts.vox); st.range = opts.range; st.paused = false; st.onDone = onDone; st.lastCap = 0; st.ptsN = 0; st.fbo = null;
+    if (!st.pbuf) { st.pbuf = gl.createBuffer(); st.cbuf = gl.createBuffer(); }
+    st.ptsCap = 0; growPts(200000);
+    $('xrPause').textContent = 'Pause'; $('xrCount').textContent = '0';
+    showOverlay('scan'); msg('Starting depth sensor…');
+    let session;
+    try {
+      session = await navigator.xr.requestSession('immersive-ar', {
+        requiredFeatures: ['depth-sensing'], optionalFeatures: ['camera-access', 'dom-overlay', 'local-floor'],
+        depthSensing: { usagePreference: ['cpu-optimized'], dataFormatPreference: ['luminance-alpha', 'float32'], matchDepthView: true },
+        domOverlay: { root: $('xrOverlay') }
+      });
+    } catch (e) {
+      hideOverlay(); st.onDone = null;
+      throw new Error('This phone didn\'t start the depth sensor (' + (e.message || e) + '). Place scans need an Android phone with ARCore Depth support in Chrome.');
+    }
+    await begin(session, 'scan');
+    if (session.depthUsage && session.depthUsage !== 'cpu-optimized') { msg('Depth is only available in GPU mode on this phone, which Hulma can\'t read yet.'); return; }
+    const feats = session.enabledFeatures;
+    if (window.XRWebGLBinding && (!feats || feats.includes('camera-access'))) { try { st.binding = new XRWebGLBinding(session, gl); } catch (e) { st.binding = null; } }
+    msg('Move slowly and sweep the floor, walls and furniture. Dots show what\'s captured.' + (st.binding ? '' : ' <i>(No camera colour on this phone: points are coloured by height.)</i>'));
+  }
+  function growPts(need) {
+    const gl = st.gl; if (need <= st.ptsCap) return;
+    let cap = Math.max(200000, st.ptsCap); while (cap < need) cap *= 2; st.ptsCap = cap;
+    gl.bindBuffer(gl.ARRAY_BUFFER, st.pbuf); gl.bufferData(gl.ARRAY_BUFFER, cap * 12, gl.DYNAMIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, st.cbuf); gl.bufferData(gl.ARRAY_BUFFER, cap * 3, gl.DYNAMIC_DRAW);
+    if (st.cloud && st.ptsN) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, st.pbuf); gl.bufferSubData(gl.ARRAY_BUFFER, 0, st.cloud.pos.subarray(0, st.ptsN * 3));
+      gl.bindBuffer(gl.ARRAY_BUFFER, st.cbuf); gl.bufferSubData(gl.ARRAY_BUFFER, 0, st.cloud.col.subarray(0, st.ptsN * 3));
+    }
+  }
+  function grabCamera(view, layer) {
+    const gl = st.gl;
+    let tex; try { tex = st.binding.getCameraImage(view.camera); } catch (e) { return false; }
+    if (!tex) return false;
+    if (!st.fbo) {
+      const aspect = layer.framebufferWidth / layer.framebufferHeight;
+      st.cw = 160; st.ch = Math.max(16, Math.round(160 / aspect));
+      st.ftex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, st.ftex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, st.cw, st.ch, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      st.fbo = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, st.fbo);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, st.ftex, 0);
+      st.px = new Uint8Array(st.cw * st.ch * 4);
+    }
+    gl.bindFramebuffer(gl.FRAMEBUFFER, st.fbo); gl.viewport(0, 0, st.cw, st.ch); gl.disable(gl.DEPTH_TEST);
+    use(st.pb); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex); gl.uniform1i(st.pb.u.uT, 0);
+    attr(st.pb.a.aQ, st.quad, 2); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    gl.readPixels(0, 0, st.cw, st.ch, gl.RGBA, gl.UNSIGNED_BYTE, st.px);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+    return true;
+  }
+  function capture(frame, pose, layer) {
+    const view = pose.views[0];
+    if (pose.emulatedPosition) { msg('Tracking lost. Hold steady and point at a textured area.'); return; }
+    let depth = null; try { depth = frame.getDepthInformation(view); } catch (e) { st.err = e.message; }
+    if (!depth) return;
+    const hasCol = st.binding && view.camera ? grabCamera(view, layer) : false;
+    const inv = inv4(view.projectionMatrix), M = view.transform.matrix, cloud = st.cloud;
+    const asp = layer.framebufferWidth / layer.framebufferHeight, GX = asp < 1 ? 54 : 72, GY = Math.round(GX / asp);
+    const jx = Math.random(), jy = Math.random(), first = cloud.n, rng = st.range, px = st.px, cw = st.cw, ch = st.ch;
+    for (let gy = 0; gy < GY; gy++) for (let gx = 0; gx < GX; gx++) {
+      const x = (gx + jx) / GX, y = (gy + jy) / GY;
+      let d; try { d = depth.getDepthInMeters(x, y); } catch (e) { continue; }
+      if (!(d > 0.15 && d < rng)) continue;
+      const nx = 2 * x - 1, ny = 1 - 2 * y;
+      let vx = inv[0] * nx + inv[4] * ny - inv[8] + inv[12], vy = inv[1] * nx + inv[5] * ny - inv[9] + inv[13], vz = inv[2] * nx + inv[6] * ny - inv[10] + inv[14];
+      const vw = inv[3] * nx + inv[7] * ny - inv[11] + inv[15]; vx /= vw; vy /= vw; vz /= vw;
+      const k = d / -vz; vx *= k; vy *= k; vz = -d;
+      const X = M[0] * vx + M[4] * vy + M[8] * vz + M[12], Y = M[1] * vx + M[5] * vy + M[9] * vz + M[13], Z = M[2] * vx + M[6] * vy + M[10] * vz + M[14];
+      let r, g, b;
+      if (hasCol) { const cx = Math.min(cw - 1, (x * cw) | 0), cy = Math.min(ch - 1, ((1 - y) * ch) | 0), q = (cy * cw + cx) * 4; r = px[q]; g = px[q + 1]; b = px[q + 2]; }
+      else { const t = Math.max(0, Math.min(1, (Y + 1.6) / 3)); r = 60 + 190 * t; g = 200 - 80 * Math.abs(t - 0.5); b = 240 - 190 * t; }
+      cloud.add(X, Y, Z, r, g, b);
+    }
+    if (cloud.n > first) {
+      growPts(cloud.n); const gl = st.gl;
+      gl.bindBuffer(gl.ARRAY_BUFFER, st.pbuf); gl.bufferSubData(gl.ARRAY_BUFFER, first * 12, cloud.pos.subarray(first * 3, cloud.n * 3));
+      gl.bindBuffer(gl.ARRAY_BUFFER, st.cbuf); gl.bufferSubData(gl.ARRAY_BUFFER, first * 3, cloud.col.subarray(first * 3, cloud.n * 3));
+      st.ptsN = cloud.n;
+    }
+    if (cloud.n >= cloud.max) { st.paused = true; $('xrPause').textContent = 'Resume'; msg('Memory full (' + cloud.n.toLocaleString() + ' points). Tap Finish.'); }
+  }
+
+  /* ----- per-frame ----- */
+  function onFrame(t, frame) {
+    const session = frame.session; session.requestAnimationFrame(onFrame);
+    const gl = st.gl, layer = session.renderState.baseLayer, pose = frame.getViewerPose(st.ref);
+    if (!pose) return;
+    const vm = pose.transform.matrix; st.viewer = [vm[12], vm[13], vm[14]];
+    if (st.mode === 'scan' && !st.paused && t - st.lastCap > 220) { st.lastCap = t; capture(frame, pose, layer); }
+    if (st.mode === 'view' && st.hitSrc) {
+      const hits = frame.getHitTestResults(st.hitSrc);
+      if (hits.length) { const hp = hits[0].getPose(st.ref); st.reticle = hp ? hp.transform.matrix : null; if (!st.placed && st.reticle) msg('Tap to place it here.'); }
+      else st.reticle = null;
+    }
+    if (st.mode === 'scan' && t - st.lastUI > 300) { st.lastUI = t; $('xrCount').textContent = st.ptsN.toLocaleString(); }
+    gl.bindFramebuffer(gl.FRAMEBUFFER, layer.framebuffer);
+    gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); gl.enable(gl.DEPTH_TEST);
+    for (const view of pose.views) {
+      const vp = layer.getViewport(view); gl.viewport(vp.x, vp.y, vp.width, vp.height);
+      const P = view.projectionMatrix, V = view.transform.inverse.matrix, fpx = P[5] * vp.height / 2;
+      if (st.mode === 'scan' && st.ptsN) {
+        use(st.pp); gl.uniformMatrix4fv(st.pp.u.uP, false, P); gl.uniformMatrix4fv(st.pp.u.uV, false, V); gl.uniformMatrix4fv(st.pp.u.uM, false, I4);
+        gl.uniform1f(st.pp.u.uPs, st.cloud ? st.cloud.vox * fpx * 1.1 : 3);
+        attr(st.pp.a.aP, st.pbuf, 3); attr(st.pp.a.aC, st.cbuf, 3, gl.UNSIGNED_BYTE, true);
+        gl.drawArrays(gl.POINTS, 0, st.ptsN);
+      }
+      if (st.mode === 'view') {
+        if (st.reticle) {
+          use(st.pp); gl.uniformMatrix4fv(st.pp.u.uP, false, P); gl.uniformMatrix4fv(st.pp.u.uV, false, V); gl.uniformMatrix4fv(st.pp.u.uM, false, st.reticle);
+          gl.uniform1f(st.pp.u.uPs, 4); attr(st.pp.a.aP, st.ring, 3); gl.vertexAttrib3f(st.pp.a.aC, 1, 0.48, 0.18);
+          gl.drawArrays(gl.LINE_LOOP, 0, 48);
+        }
+        if (st.placed && st.G) {
+          const m = st.model, M = trs(st.pos, st.yaw + st.rot * Math.PI / 180, st.scale), G = st.G;
+          if (m.kind === 'mesh') {
+            use(st.pm); gl.uniformMatrix4fv(st.pm.u.uP, false, P); gl.uniformMatrix4fv(st.pm.u.uV, false, V); gl.uniformMatrix4fv(st.pm.u.uM, false, M);
+            gl.uniform3f(st.pm.u.uL, 0.32, 0.86, 0.4);
+            attr(st.pm.a.aP, G.p, 3); attr(st.pm.a.aN, G.n, 3); attr(st.pm.a.aC, G.c, 3, gl.UNSIGNED_BYTE, true);
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, G.i); gl.drawElements(gl.TRIANGLES, G.count, gl.UNSIGNED_INT, 0);
+          } else {
+            use(st.pp); gl.uniformMatrix4fv(st.pp.u.uP, false, P); gl.uniformMatrix4fv(st.pp.u.uV, false, V); gl.uniformMatrix4fv(st.pp.u.uM, false, M);
+            gl.uniform1f(st.pp.u.uPs, m.vox * st.scale * fpx * 1.3);
+            attr(st.pp.a.aP, G.p, 3); attr(st.pp.a.aC, G.c, 3, gl.UNSIGNED_BYTE, true); gl.drawArrays(gl.POINTS, 0, G.count);
+          }
+        }
+      }
+    }
+  }
+  /* overlay controls must not count as AR taps */
+  document.querySelectorAll('#xrOverlay .xrc').forEach(el => el.addEventListener('beforexrselect', e => e.preventDefault()));
+  $('xrExit').addEventListener('click', () => { if (st.session) { if (st.mode === 'scan') st.onDone = null; st.session.end(); } else hideOverlay(); });
+  $('xrFinish').addEventListener('click', () => { if (st.session) st.session.end(); });
+  $('xrPause').addEventListener('click', () => { st.paused = !st.paused; $('xrPause').textContent = st.paused ? 'Resume' : 'Pause'; msg(st.paused ? 'Paused. Points are kept.' : 'Scanning. Move slowly.'); });
+  $('xrRot').addEventListener('input', e => { st.rot = +e.target.value; $('xrRotO').textContent = st.rot + '°'; });
+  $('xrSize').addEventListener('input', e => { st.scale = Math.pow(10, +e.target.value / 100); setSizeUI(); });
+  $('xrReal').addEventListener('click', () => { st.scale = 1; setSizeUI(); });
+  $('xrMini').addEventListener('click', () => { if (st.model) { st.scale = st.model.miniScale; setSizeUI(); } });
+  return { status, startView, startScan, WHY, framed, active: () => !!st.session };
+})();
+
+/* ---------- modes + place UI ---------- */
+S.mode = 'object'; S.place = null; S.placeDemo = false;
+let arInfo = { ok: false, why: 'noxr' };
+XRM.status().then(r => { arInfo = r; renderArState(); });
+function renderArState() {
+  const el = $('arState');
+  if (arInfo.ok) { el.className = 'callout ok'; el.innerHTML = '<b>AR is ready on this device.</b> Place scans also need the depth sensor (ARCore Depth). If yours lacks it, the app will say so when you start.'; }
+  else { el.className = 'callout no'; el.innerHTML = XRM.WHY[arInfo.why] || XRM.WHY.noar; }
+  $('objArNote').innerHTML = arInfo.ok ? 'View in AR puts the model on your table or floor at the real height you entered.' : 'View in AR: ' + (XRM.WHY[arInfo.why] || XRM.WHY.noar);
+}
+function setMode(m) {
+  S.mode = m; $('mObject').setAttribute('aria-pressed', m === 'object'); $('mPlace').setAttribute('aria-pressed', m === 'place');
+  $('objectUI').classList.toggle('hidden', m !== 'object'); $('placeUI').classList.toggle('hidden', m !== 'place');
+  $('vCams').classList.toggle('hidden', m === 'place'); $('vClay').classList.toggle('hidden', m === 'place');
+  if (m === 'place') {
+    if (!S.place) { S.place = Hulma.demoPlace(0.03); S.placeDemo = true; }
+    viewer.setPoints(S.place); viewer.dist = 3.1; viewer.pitch = 0.55; viewer.draw(); renderPlace();
+  } else {
+    if (S.result) viewer.setMesh(S.result.mesh, S.result.cams); else viewer.setMesh(null);
+    setResult(S.result);
+  }
+}
+$('mObject').addEventListener('click', () => setMode('object'));
+$('mPlace').addEventListener('click', () => setMode('place'));
+function placeExtent(pc) {
+  const P = pc.pos, lo = [1e9, 1e9, 1e9], hi = [-1e9, -1e9, -1e9];
+  for (let i = 0; i < P.length; i += 3) for (let k = 0; k < 3; k++) { const v = P[i + k]; if (v < lo[k]) lo[k] = v; if (v > hi[k]) hi[k] = v; }
+  return { lo, hi, size: [hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]] };
+}
+function renderPlace() {
+  $('placeDemoNote').classList.toggle('hidden', !S.placeDemo);
+  const pc = S.place; if (!pc) { $('placeStats').innerHTML = ''; return; }
+  const n = pc.pos.length / 3, e = placeExtent(pc).size;
+  $('placeStats').innerHTML = '<div class="kv"><span>Points</span><strong>' + n.toLocaleString() + '</strong></div>' +
+    '<div class="kv"><span>Size W × D</span><strong>' + e[0].toFixed(1) + ' × ' + e[2].toFixed(1) + ' m</strong></div>' +
+    '<div class="kv"><span>Height</span><strong>' + e[1].toFixed(1) + ' m</strong></div>' +
+    '<div class="kv"><span>Spacing</span><strong>' + (pc.vox * 100).toFixed(1) + ' cm</strong></div>';
+  $('vbadge').textContent = S.placeDemo ? 'Example place' : 'Your place scan';
+  $('vstats').textContent = n.toLocaleString() + ' points';
+}
+function arBlocked() {
+  if (arInfo.ok) return false;
+  toast('AR isn\'t available here. See the note in this panel.');
+  if (S.mode === 'place') $('arState').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  return true;
+}
+$('scanBtn').addEventListener('click', async () => {
+  if (arBlocked() || XRM.active()) return;
+  try {
+    await XRM.startScan({ vox: +$('vox').value, range: +$('range').value }, pc => {
+      // put the floor at y=0 using the lowest well-populated layer
+      const ys = []; for (let i = 1; i < pc.pos.length; i += 3 * 7) ys.push(pc.pos[i]); ys.sort((a, b) => a - b);
+      const floor = ys.length ? ys[Math.floor(ys.length * 0.01)] : 0; for (let i = 1; i < pc.pos.length; i += 3) pc.pos[i] -= floor;
+      S.place = pc; S.placeDemo = false; setMode('place'); toast('Place scan saved: ' + (pc.pos.length / 3).toLocaleString() + ' points');
+    });
+  } catch (e) { toast(e.message); $('arState').className = 'callout no'; $('arState').textContent = e.message; }
+});
+function arModelFromPlace(pc) {
+  const e = placeExtent(pc), cx = (e.lo[0] + e.hi[0]) / 2, cz = (e.lo[2] + e.hi[2]) / 2;
+  const pos = new Float32Array(pc.pos.length);
+  for (let i = 0; i < pos.length; i += 3) { pos[i] = pc.pos[i] - cx; pos[i + 1] = pc.pos[i + 1] - e.lo[1]; pos[i + 2] = pc.pos[i + 2] - cz; }
+  const mini = Math.min(1, 0.6 / Math.max(e.size[0], e.size[1], e.size[2]));
+  return { kind: 'points', pos, col: pc.col, vox: pc.vox, defaultScale: mini, miniScale: mini };
+}
+$('placeAR').addEventListener('click', async () => {
+  if (!S.place || arBlocked() || XRM.active()) return;
+  try { await XRM.startView(arModelFromPlace(S.place)); } catch (e) { toast(e.message); }
+});
+$('objAR').addEventListener('click', async () => {
+  const r = S.result; if (!r || arBlocked() || XRM.active()) return;
+  const h = Math.max(0.1, +$('height').value || 10) / 100, g = Hulma.finalMesh(r.mesh, h);
+  try { await XRM.startView({ kind: 'mesh', pos: g.pos, nrm: g.nrm, col: g.col, idx: g.idx, defaultScale: 1, miniScale: Math.min(1, 0.25 / h) }); } catch (e) { toast(e.message); }
+});
+$('placeZip').addEventListener('click', async () => {
+  const pc = S.place; if (!pc) return;
+  toast('Packing files…'); await Hulma.tick();
+  const n = pc.pos.length / 3, e = placeExtent(pc).size;
+  const readme = 'Hulma 3D place scan\n\nplace.ply  coloured point cloud (CloudCompare, MeshLab, Blender with a PLY importer)\nplace.glb  same points as glTF (model-viewer, three.js, Blender)\n\nUnits: metres, Y up, floor at 0.\nPoints: ' + n + '. Size ' + e[0].toFixed(2) + ' x ' + e[2].toFixed(2) + ' m, height ' + e[1].toFixed(2) + ' m. Spacing ' + (pc.vox * 100).toFixed(1) + ' cm.\nTip: in MeshLab or CloudCompare, run Poisson surface reconstruction to turn the points into a solid mesh.\n';
+  const zip = Hulma.zip([{ name: 'place.ply', data: Hulma.pointsToPLY(pc.pos, pc.col) }, { name: 'place.glb', data: Hulma.toGLB(pc) }, { name: 'README.txt', data: readme }]);
+  await saveFile((S.placeDemo ? 'hulma-example-room' : 'hulma-place') + '.zip', new Blob([zip], { type: 'application/zip' }));
+});
+
+/* ---------- get the app + share (QR) ---------- */
+const DEFAULT_REPO = 'gnotesamsung7-hue/hulma-3d';
+const SH = { kind: 'apk', repo: DEFAULT_REPO };
+try { const r = localStorage.getItem('hulmaRepo'); if (r && /^[\w.-]+\/[\w.-]+$/.test(r)) SH.repo = r; } catch (e) { }
+const inApp = document.referrer.startsWith('android-app://com.markdave.hulma3d');
+function shareLinks() {
+  const [u, rp] = SH.repo.split('/');
+  return { apk: 'https://github.com/' + u + '/' + rp + '/releases/latest/download/hulma-3d.apk', web: 'https://' + u.toLowerCase() + '.github.io/' + rp + '/' };
+}
+function drawLogo(g, cx, cy, s) {
+  // white backing, dark tile, orange/cyan cube (same drawing as the header logo)
+  const b = s * 1.22;
+  g.fillStyle = '#ffffff'; roundRect(g, cx - b / 2, cy - b / 2, b, b, b * 0.24); g.fill();
+  g.fillStyle = '#1c252d'; roundRect(g, cx - s / 2, cy - s / 2, s, s, s * 0.24); g.fill();
+  const k = s / 34, P = (x, y) => [cx - s / 2 + x * k, cy - s / 2 + y * k];
+  g.lineJoin = 'round'; g.lineCap = 'round';
+  g.strokeStyle = '#ff7a2f'; g.lineWidth = 2.4 * k; g.beginPath();
+  [[17, 6], [27, 11.5], [27, 22.5], [17, 28], [7, 22.5], [7, 11.5]].forEach(([x, y], i) => { const p = P(x, y); i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]); });
+  g.closePath(); g.stroke();
+  g.strokeStyle = '#3fd0c9'; g.lineWidth = 1.8 * k; g.beginPath();
+  let p = P(7, 11.5); g.moveTo(p[0], p[1]); p = P(17, 17); g.lineTo(p[0], p[1]); p = P(27, 11.5); g.lineTo(p[0], p[1]);
+  p = P(17, 17); g.moveTo(p[0], p[1]); p = P(17, 28); g.lineTo(p[0], p[1]); g.stroke();
+}
+function roundRect(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+function drawQR() {
+  const url = shareLinks()[SH.kind], c = $('qr'), g = c.getContext('2d'), W = c.width;
+  g.fillStyle = '#fff'; g.fillRect(0, 0, W, W);
+  try {
+    const q = qrcode(0, 'H'); q.addData(url); q.make();
+    const n = q.getModuleCount(), cell = Math.floor(W / (n + 8)), off = Math.floor((W - cell * n) / 2);
+    g.fillStyle = '#0e1317';
+    for (let r = 0; r < n; r++) for (let col = 0; col < n; col++) if (q.isDark(r, col)) g.fillRect(off + col * cell, off + r * cell, cell, cell);
+    drawLogo(g, W / 2, W / 2, cell * n * 0.2);
+  } catch (e) { g.fillStyle = '#000'; g.font = '20px sans-serif'; g.fillText('Link too long for a QR code', 40, W / 2); }
+  $('qrLink').textContent = url;
+  $('qrCap').textContent = SH.kind === 'apk' ? 'Scan to download the Android app' : 'Scan to open Hulma in a browser';
+  $('qrHelp').innerHTML = (SH.kind === 'apk'
+    ? 'Downloads <b>hulma-3d.apk</b>, the newest build. It installs as an app with its own icon and runs in Chrome, so <b>AR and place scans work</b> there.'
+    : 'Opens Hulma in any browser: phone, tablet or laptop. Use <b>Chrome on Android</b> for AR and place scans.')
+    + (inApp ? ' <b>You\'re using the installed app right now.</b>' : '');
+  document.querySelectorAll('#qrKind button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === SH.kind));
+  $('repo').value = SH.repo;
+}
+document.querySelectorAll('#qrKind button').forEach(b => b.addEventListener('click', () => { SH.kind = b.dataset.v; drawQR(); }));
+async function copyText(t) {
+  try { await navigator.clipboard.writeText(t); return true; } catch (e) { }
+  try { const ta = document.createElement('textarea'); ta.value = t; ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select(); const ok = document.execCommand('copy'); ta.remove(); return ok; } catch (e) { return false; }
+}
+$('qrCopy').addEventListener('click', async () => toast(await copyText(shareLinks()[SH.kind]) ? 'Link copied' : 'Copy failed. Press and hold the link to copy it.'));
+$('qrShare').addEventListener('click', async () => {
+  const url = shareLinks()[SH.kind], text = SH.kind === 'apk' ? 'Get Hulma 3D for Android: turn photos into 3D models and scan rooms in AR.' : 'Try Hulma 3D: turn photos into 3D models.';
+  if (navigator.share) { try { await navigator.share({ title: 'Hulma 3D', text, url }); return; } catch (e) { if (e && e.name === 'AbortError') return; } }
+  toast(await copyText(text + ' ' + url) ? 'Sharing isn\'t available here, so the message and link were copied' : 'Press and hold the link to copy it');
+});
+$('qrSave').addEventListener('click', () => {
+  const src = $('qr'), c = document.createElement('canvas'), W = 900, H = 1020; c.width = W; c.height = H; const g = c.getContext('2d');
+  g.fillStyle = '#fff'; g.fillRect(0, 0, W, H); g.drawImage(src, 90, 60, 720, 720);
+  g.fillStyle = '#0e1317'; g.textAlign = 'center'; g.font = '700 46px "IBM Plex Sans", sans-serif'; g.fillText('Hulma 3D', W / 2, 850);
+  g.fillStyle = '#4a5560'; g.font = '30px "IBM Plex Sans", sans-serif';
+  g.fillText(SH.kind === 'apk' ? 'Scan to download the Android app' : 'Scan to open in your browser', W / 2, 900);
+  g.font = '22px "IBM Plex Mono", monospace'; g.fillText(shareLinks()[SH.kind].replace('https://', ''), W / 2, 950);
+  c.toBlob(b => b && saveFile('hulma-3d-' + SH.kind + '-qr.png', b), 'image/png');
+});
+$('repoSave').addEventListener('click', () => {
+  const v = $('repo').value.trim().replace(/^https?:\/\/github\.com\//, '').replace(/\/+$/, '');
+  if (!/^[\w.-]+\/[\w.-]+$/.test(v)) { toast('Use the form account/repo, for example ' + DEFAULT_REPO); return; }
+  SH.repo = v; try { localStorage.setItem('hulmaRepo', v); } catch (e) { } drawQR(); toast('QR codes now point to ' + v);
+});
+$('repoReset').addEventListener('click', () => { SH.repo = DEFAULT_REPO; try { localStorage.removeItem('hulmaRepo'); } catch (e) { } drawQR(); });
+$('getApp').addEventListener('click', () => $('share').scrollIntoView({ behavior: 'smooth', block: 'start' }));
+drawQR();
+document.fonts && document.fonts.ready.then(drawQR);
+
+/* installable web app + offline copy, only on the hosted site (not inside the Claude preview) */
+if (!XRM.framed && location.protocol === 'https:') {
+  const add = (rel, href) => { const l = document.createElement('link'); l.rel = rel; l.href = href; document.head.appendChild(l); };
+  add('manifest', 'manifest.webmanifest'); add('apple-touch-icon', 'icon-192.png'); add('icon', 'icon-192.png');
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => { });
+}
+
+/* ---------- example scan on first open ---------- */
+async function loadDemo() {
+  S.demo = true; S.photos = [];
+  const n = 24, w = 480, h = 360;
+  for (let i = 0; i < n; i++) {
+    $('photoCount').textContent = 'Preparing example photos ' + (i + 1) + '/' + n + '…';
+    const img = Hulma.renderDemo(w, h, i * 360 / n, 24, 3, 26);
+    const c = document.createElement('canvas'); c.width = w; c.height = h; c.getContext('2d').putImageData(new ImageData(img.data, w, h), 0, 0);
+    S.photos.push({ name: 'robot-' + (i + 1) + '.jpg', img, thumb: thumbURL(c), f35: 26 });
+    if (i % 2) await Hulma.tick();
+  }
+  S.segDirty = true; renderPhotos(); lensLabel();
+  await build();
+}
+renderPlanner();
+loadDemo();
+</script>
+</body>
+</html>

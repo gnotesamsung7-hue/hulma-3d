@@ -1,0 +1,61 @@
+plugins {
+    id 'com.android.application'
+}
+
+// The app opens this page inside Chrome as a Trusted Web Activity, so web AR and the depth scanner work.
+// Change these two lines if you rename the repo or use another GitHub account.
+def siteHost = 'gnotesamsung7-hue.github.io'
+def siteUrl = 'https://gnotesamsung7-hue.github.io/hulma-3d/'
+
+def buildNumber = (System.getenv('GITHUB_RUN_NUMBER') ?: '1').toInteger()
+
+android {
+    namespace 'com.markdave.hulma3d'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.markdave.hulma3d'
+        minSdk 21
+        targetSdk 34
+        versionCode buildNumber
+        versionName "1.0.${buildNumber}"
+        manifestPlaceholders = [siteHost: siteHost, siteUrl: siteUrl]
+        resValue 'string', 'asset_statements',
+            '[{ \\"relation\\": [\\"delegate_permission/common.handle_all_urls\\"],' +
+            ' \\"target\\": {\\"namespace\\": \\"web\\", \\"site\\": \\"https://' + siteHost + '\\"}}]'
+    }
+
+    // One fixed key, so every new build installs over the old one.
+    signingConfigs {
+        fixed {
+            storeFile file('hulma-signing.keystore')
+            storePassword 'hulma3dkey'
+            keyAlias 'hulma'
+            keyPassword 'hulma3dkey'
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.fixed
+        }
+        release {
+            signingConfig signingConfigs.fixed
+            minifyEnabled false
+        }
+    }
+
+    lint {
+        checkReleaseBuilds false
+        abortOnError false
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.5.0'
+}
