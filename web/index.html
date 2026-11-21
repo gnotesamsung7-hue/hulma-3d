@@ -96,6 +96,18 @@ details li b{color:var(--ink);font-weight:500}
 .toast.on{opacity:1}
 .modes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:12px 12px 0}
 @media (max-width:460px){.modes button{flex-direction:column;align-items:flex-start;gap:4px;padding:9px 10px;font-size:14px}.modes button small{font-size:11px}}
+.vidCard{border:1px solid var(--line);background:var(--raise);border-radius:12px;padding:12px;display:grid;gap:10px}
+.vidHead{display:grid;gap:2px}
+.vidCard details{background:var(--panel)}
+.vidFrame{width:100%;max-width:200px;height:auto;border-radius:8px;border:1px solid var(--line);background:#000;margin-top:6px}
+.live{position:fixed;inset:0;z-index:30;background:#000;color:#fff;display:flex;flex-direction:column;justify-content:space-between;padding:max(12px,env(safe-area-inset-top)) 12px max(14px,env(safe-area-inset-bottom))}
+.live video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+.live canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.liveTop,.liveBottom{position:relative;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+.liveTop{align-items:flex-start}
+.liveBottom{background:#0b1014d9;border:1px solid #ffffff22;border-radius:14px;padding:12px;justify-content:space-between}
+.liveBottom .field{min-width:140px;flex:1}.liveBottom .field label{color:#cfd8de}
+.live .btn{background:#1c252dee;color:#fff}.live .btn.primary{background:var(--accent);color:var(--accent-ink);min-width:110px;justify-content:center}
 .picPrev{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
 .picPrev canvas{width:min(220px,48%);height:auto;border-radius:10px;border:1px solid var(--line);background:#000}
 .picPrev .note{flex:1;min-width:150px}
@@ -252,7 +264,7 @@ details li b{color:var(--ink);font-weight:500}
           <div class="big" id="nextBig">Photo 1 of 24</div>
           <div class="sub" id="nextSub">Object at mark 1 (0°), facing the camera.</div>
           <div class="row" style="margin-top:4px">
-            <label class="note" for="target">Stops around</label>
+            <label class="note" for="target">Photos or video frames per turn</label>
             <select id="target" style="width:auto"><option>12</option><option>16</option><option selected>24</option><option>36</option><option>48</option></select>
           </div>
         </div>
@@ -264,11 +276,32 @@ details li b{color:var(--ink);font-weight:500}
         <input id="galIn" type="file" accept="image/*" multiple class="hidden">
         <button class="btn ghost" id="newScan">New scan</button>
       </div>
+      <div class="vidCard">
+        <div class="vidHead"><b>Faster: one video instead of many photos</b><span class="note">Turn the object one full circle while filming. Hulma finds the full turn and pulls out evenly spaced frames.</span></div>
+        <div class="row">
+          <button class="btn primary" id="liveBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.5" fill="currentColor"/></svg>Continuous shoot</button>
+          <label class="btn" for="vidCam"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="m16 10 6-3v10l-6-3z"/></svg>Record video</label>
+          <input id="vidCam" type="file" accept="video/*" capture="environment" class="hidden">
+          <label class="btn" for="vidIn">Import video</label>
+          <input id="vidIn" type="file" accept="video/*" class="hidden">
+        </div>
+        <div class="note" id="liveNote"></div>
+        <div class="callout hidden" id="vidNote"></div>
+        <details class="hidden" id="vidAdjust">
+          <summary>Adjust the turn</summary>
+          <div class="two" style="padding:0 12px 12px">
+            <div class="field"><label for="vidStart">Turn starts <output id="vidStartO"></output></label><input type="range" id="vidStart" min="0" max="100" step="0.1" value="0"><canvas id="vidStartC" width="160" height="120" class="vidFrame" aria-label="Frame at the start of the turn"></canvas></div>
+            <div class="field"><label for="vidEnd">Turn ends <output id="vidEndO"></output></label><input type="range" id="vidEnd" min="0" max="100" step="0.1" value="100"><canvas id="vidEndC" width="160" height="120" class="vidFrame" aria-label="Frame at the end of the turn"></canvas></div>
+          </div>
+          <div class="row" style="padding:0 12px 12px"><span class="note">The two frames should show the object facing the same way.</span><button class="btn" id="vidApply">Use this turn</button></div>
+        </details>
+      </div>
       <div class="note" id="photoCount"></div>
       <div class="grid" id="thumbs"></div>
       <details>
         <summary>How to shoot for a good model</summary>
         <ol>
+          <li><b>Easiest:</b> use <b>Continuous shoot</b> or <b>Record video</b> and turn the object one full circle at a steady speed (20–30 seconds), going a little past where you started.</li>
           <li><b>Plain background.</b> Put the object on a sheet or wall that is a different colour from it. White object? Use a dark cloth.</li>
           <li><b>Keep it all in frame</b> with some space around it. The object must not touch the photo edges.</li>
           <li><b>Hold the phone still</b> (prop it on books or a tripod). Turn the <b>object</b> by the same step each time, on a lazy susan or the mat below.</li>
@@ -371,6 +404,21 @@ details li b{color:var(--ink);font-weight:500}
   </section>
 </div>
 <div class="toast" id="toast" role="status"></div>
+
+<!-- continuous shoot (live camera) -->
+<div id="liveOv" class="live hidden" role="dialog" aria-label="Continuous shoot">
+  <video id="liveVid" playsinline muted autoplay></video>
+  <canvas id="liveRing" aria-hidden="true"></canvas>
+  <div class="liveTop">
+    <button class="btn" id="liveCancel">Cancel</button>
+    <div class="xrMsg" id="liveMsg">Put the object in the middle. Keep the phone still.</div>
+  </div>
+  <div class="liveBottom">
+    <div class="field"><label for="liveTurn">One full turn takes</label><select id="liveTurn"><option value="20">20 seconds</option><option value="30" selected>30 seconds</option><option value="45">45 seconds</option></select></div>
+    <div class="xrCount"><strong id="liveCount">0</strong><span>frames</span></div>
+    <button class="btn primary" id="liveGo">Start</button>
+  </div>
+</div>
 
 <!-- AR overlay (becomes the WebXR DOM overlay) -->
 <div id="xrOverlay" class="xr hidden">
@@ -889,6 +937,38 @@ H.reconstruct = async function (views, opt, progress) {
   mesh.col = await colorize(mesh, occ, N, R, views.map(v => v.img), cams, p => say('Painting colours from photos…', 0.6 + 0.38 * p));
   say('Done', 1);
   return { mesh, occ, N, R, el, dir, cams, coverage: cov, calib, allowMiss };
+};
+
+/* ---------- video / continuous shoot: find one full turn ----------
+   thumbs: small grey frames (same size), times: seconds. Finds when the object starts moving
+   and when it comes back to its starting view. */
+H.findTurn = function (thumbs, times) {
+  const n = thumbs.length, T0 = times[0], T1 = times[n - 1];
+  if (n < 8) return { start: T0, end: T1, conf: 0 };
+  const L = thumbs[0].length;
+  const diff = (a, b) => { let s = 0; for (let i = 0; i < L; i++) s += Math.abs(a[i] - b[i]); return s / L; };
+  const d0 = thumbs.map(t => diff(t, thumbs[0])); let dmax = 0; for (const v of d0) if (v > dmax) dmax = v;
+  if (dmax < 1.5) return { start: T0, end: T1, conf: 0, still: true };
+  // skip a still start: last frame before the view clearly changes
+  let s = 0; while (s < n - 1 && d0[s + 1] < 0.12 * dmax) s++;
+  const ref = thumbs[s], d = thumbs.map(t => diff(t, ref));
+  let dm = 0; for (let i = s; i < n; i++) if (d[i] > dm) dm = d[i];
+  let a = s; while (a < n - 1 && d[a] < 0.55 * dm) a++;      // turned well away from the start
+  let best = -1, bv = 1e30;
+  for (let i = a + 1; i < n; i++) if (d[i] < bv) { bv = d[i]; best = i; }
+  if (best < 0 || bv > 0.5 * dm) return { start: times[s], end: T1, conf: 0 };
+  let tEnd = times[best];
+  if (best > 0 && best < n - 1) {               // sub-frame refinement
+    const l = d[best - 1], r = d[best + 1], den = l - 2 * bv + r;
+    if (den > 1e-9) tEnd += Math.max(-0.5, Math.min(0.5, 0.5 * (l - r) / den)) * (times[best + 1] - times[best - 1]) / 2;
+  }
+  return { start: times[s], end: tEnd, conf: Math.max(0, 1 - bv / dm) };
+};
+/* grey thumbnail (48x36) from RGBA pixels */
+H.greyThumb = function (img) {
+  const w = 48, h = 36, out = new Float32Array(w * h), small = H.resizeImg(img, w, h), D = small.data;
+  for (let i = 0; i < w * h; i++) out[i] = 0.299 * D[i * 4] + 0.587 * D[i * 4 + 1] + 0.114 * D[i * 4 + 2];
+  return out;
 };
 
 /* ---------- single picture -> 3D ---------- */
@@ -4322,6 +4402,154 @@ $('placeZip').addEventListener('click', async () => {
   const readme = 'Hulma 3D place scan\n\nplace.ply  coloured point cloud (CloudCompare, MeshLab, Blender with a PLY importer)\nplace.glb  same points as glTF (model-viewer, three.js, Blender)\n\nUnits: metres, Y up, floor at 0.\nPoints: ' + n + '. Size ' + e[0].toFixed(2) + ' x ' + e[2].toFixed(2) + ' m, height ' + e[1].toFixed(2) + ' m. Spacing ' + (pc.vox * 100).toFixed(1) + ' cm.\nTip: in MeshLab or CloudCompare, run Poisson surface reconstruction to turn the points into a solid mesh.\n';
   const zip = Hulma.zip([{ name: 'place.ply', data: Hulma.pointsToPLY(pc.pos, pc.col) }, { name: 'place.glb', data: Hulma.toGLB(pc) }, { name: 'README.txt', data: readme }]);
   await saveFile((S.placeDemo ? 'hulma-example-room' : 'hulma-place') + '.zip', new Blob([zip], { type: 'application/zip' }));
+});
+
+/* ---------- video + continuous shoot -> evenly spaced frames ---------- */
+const VID = { src: null, start: 0, end: 0, conf: 0, dur: 0 };
+const VIDEO_F35 = 28; // phone video crops a little tighter than photos
+function canvasImage(srcEl, sw, sh) {
+  const s = Math.min(1, PROC / Math.max(sw, sh)), w = Math.max(16, Math.round(sw * s)), h = Math.max(16, Math.round(sh * s));
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(srcEl, 0, 0, w, h);
+  return { canvas: c, img: { width: w, height: h, data: g.getImageData(0, 0, w, h).data } };
+}
+function seekVideo(v, t) {
+  return new Promise(res => {
+    let done = false; const fin = () => { if (done) return; done = true; v.removeEventListener('seeked', fin); res(); };
+    v.addEventListener('seeked', fin); v.currentTime = Math.max(0, Math.min(t, v.duration - 0.04)); setTimeout(fin, 4000);
+  });
+}
+async function frameAt(t) {
+  const src = VID.src;
+  if (src.kind === 'video') { await seekVideo(src.el, t); return canvasImage(src.el, src.el.videoWidth, src.el.videoHeight); }
+  let best = src.frames[0]; for (const f of src.frames) if (f && Math.abs(f.t - t) < Math.abs(best.t - t)) best = f;
+  const bmp = await createImageBitmap(best.blob); return canvasImage(bmp, bmp.width, bmp.height);
+}
+function vidStatus(t) { $('photoCount').textContent = t; }
+async function openVideo(file) {
+  if (!file) return;
+  vidStatus('Opening video…');
+  const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.preload = 'auto'; v.src = URL.createObjectURL(file);
+  try {
+    await new Promise((res, rej) => { v.onloadeddata = res; v.onerror = () => rej(new Error('This video format can\'t be read here. Try an MP4 recorded with the phone camera.')); setTimeout(() => rej(new Error('The video took too long to open.')), 20000); });
+    if (!isFinite(v.duration)) { v.currentTime = 1e7; await new Promise(r => { v.ondurationchange = r; setTimeout(r, 3000); }); }
+    const dur = v.duration; if (!(dur > 2)) throw new Error('The video is too short. Record at least one full turn (about 15 seconds or more).');
+    VID.src = { kind: 'video', el: v }; VID.dur = dur;
+    const n = Math.max(40, Math.min(180, Math.round(dur * 4))), thumbs = [], times = [];
+    for (let i = 0; i < n; i++) {
+      const t = i * dur / (n - 1); await seekVideo(v, t);
+      thumbs.push(Hulma.greyThumb(canvasImage(v, v.videoWidth, v.videoHeight).img)); times.push(t);
+      if (i % 4 === 0) vidStatus('Looking for one full turn… ' + Math.round(100 * i / n) + '%');
+    }
+    await useTurn(Hulma.findTurn(thumbs, times));
+  } catch (e) { vidStatus(e.message || String(e)); toast(e.message || 'Could not read the video'); }
+}
+async function useTurn(r) {
+  VID.start = r.start; VID.end = r.end; VID.conf = r.conf;
+  const max = VID.dur.toFixed(1);
+  for (const id of ['vidStart', 'vidEnd']) { $(id).max = max; }
+  $('vidStart').value = r.start.toFixed(1); $('vidEnd').value = r.end.toFixed(1);
+  $('vidAdjust').classList.remove('hidden');
+  await extractFrames();
+  const el = $('vidNote'); el.classList.remove('hidden');
+  if (r.still) { el.className = 'callout no'; el.innerHTML = '<b>The object didn\'t seem to turn.</b> Took frames across the whole video. Turn it one full circle while filming.'; }
+  else if (r.conf > 0.6) { el.className = 'callout ok'; el.innerHTML = '<b>Found one full turn</b> from ' + r.start.toFixed(1) + ' s to ' + r.end.toFixed(1) + ' s (start and end match ' + Math.round(r.conf * 100) + '%). Took ' + S.photos.length + ' evenly spaced frames.'; }
+  else { el.className = 'callout no'; el.innerHTML = '<b>Couldn\'t clearly find where the turn ends</b>, so frames span ' + r.start.toFixed(1) + '–' + r.end.toFixed(1) + ' s. Check <b>Adjust the turn</b>: the two frames should face the same way.'; }
+  previewTurn();
+}
+async function extractFrames() {
+  const N = S.target, a = VID.start, b = VID.end;
+  if (S.demo) clearAll(true); S.photos = []; S.result = null;
+  for (let k = 0; k < N; k++) {
+    const t = a + k * (b - a) / N, f = await frameAt(t);
+    S.photos.push({ name: 'frame-' + (k + 1) + '.jpg', img: f.img, thumb: thumbURL(f.canvas), f35: VIDEO_F35 });
+    vidStatus('Taking frame ' + (k + 1) + ' of ' + N + '…');
+  }
+  S.segDirty = true; S.demo = false; renderPhotos();
+  if ($('lens').value === 'auto') lensLabel();
+  showTab('p1'); build();
+}
+let prevT;
+async function previewTurn() {
+  if (!VID.src) return;
+  $('vidStartO').textContent = (+$('vidStart').value).toFixed(1) + ' s'; $('vidEndO').textContent = (+$('vidEnd').value).toFixed(1) + ' s';
+  for (const [id, cid] of [['vidStart', 'vidStartC'], ['vidEnd', 'vidEndC']]) {
+    const f = await frameAt(+$(id).value), c = $(cid); c.width = f.canvas.width; c.height = f.canvas.height; c.getContext('2d').drawImage(f.canvas, 0, 0);
+  }
+}
+['vidStart', 'vidEnd'].forEach(id => $(id).addEventListener('input', () => {
+  $(id + 'O').textContent = (+$(id).value).toFixed(1) + ' s'; clearTimeout(prevT); prevT = setTimeout(previewTurn, 200);
+}));
+$('vidApply').addEventListener('click', async () => {
+  const a = +$('vidStart').value, b = +$('vidEnd').value;
+  if (b - a < 2) { toast('The turn must be at least 2 seconds long'); return; }
+  VID.start = a; VID.end = b; await extractFrames();
+  $('vidNote').className = 'callout ok'; $('vidNote').innerHTML = '<b>Using ' + a.toFixed(1) + '–' + b.toFixed(1) + ' s.</b> Took ' + S.photos.length + ' evenly spaced frames.';
+});
+$('vidCam').addEventListener('change', e => { openVideo(e.target.files[0]); e.target.value = ''; });
+$('vidIn').addEventListener('change', e => { openVideo(e.target.files[0]); e.target.value = ''; });
+
+/* live camera: grab ~5 frames a second while the object turns, guided by a pacing dot */
+const LIVE = { stream: null, on: false, t0: 0, frames: [], thumbs: [], times: [], timer: 0, raf: 0, turn: 30 };
+const liveOK = !XRM.framed && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+$('liveNote').innerHTML = liveOK ? 'Continuous shoot keeps the camera open and grabs frames for you. A dot shows how fast to turn.' : 'Continuous shoot needs the camera, which the Claude preview blocks. It works in the installed app and the web link. <b>Record video</b> works here.';
+function drawRing() {
+  const c = $('liveRing'), dpr = Math.min(2, devicePixelRatio || 1), W = c.clientWidth * dpr, H = c.clientHeight * dpr;
+  if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
+  const g = c.getContext('2d'); g.clearRect(0, 0, W, H);
+  const cx = W / 2, cy = H / 2, R = Math.min(W, H) * 0.36;
+  const el = LIVE.on ? (performance.now() - LIVE.t0) / 1000 : 0, frac = el / LIVE.turn, a = -Math.PI / 2 + frac * Math.PI * 2;
+  g.lineWidth = 3 * dpr; g.strokeStyle = 'rgba(255,255,255,.35)'; g.beginPath(); g.arc(cx, cy, R, 0, 7); g.stroke();
+  if (LIVE.on) { g.strokeStyle = '#ff7a2f'; g.lineWidth = 5 * dpr; g.beginPath(); g.arc(cx, cy, R, -Math.PI / 2, a); g.stroke(); }
+  g.fillStyle = LIVE.on ? '#ff7a2f' : '#3fd0c9'; g.beginPath(); g.arc(cx + Math.cos(a) * R, cy + Math.sin(a) * R, 11 * dpr, 0, 7); g.fill();
+  g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 1.5 * dpr; g.beginPath(); g.moveTo(cx - 14 * dpr, cy); g.lineTo(cx + 14 * dpr, cy); g.moveTo(cx, cy - 14 * dpr); g.lineTo(cx, cy + 14 * dpr); g.stroke();
+  if (LIVE.on) {
+    $('liveCount').textContent = LIVE.frames.length;
+    $('liveMsg').innerHTML = frac < 1 ? 'Turn the object along with the orange dot. <b>' + Math.round(frac * 360) + '°</b>' : '<b>Full turn done.</b> Keep going a moment, it stops on its own.';
+    if (frac > 1.12) { stopLive(true); return; }
+  }
+  LIVE.raf = requestAnimationFrame(drawRing);
+}
+async function openLive() {
+  if (!liveOK) { toast('Continuous shoot works in the installed app. Use Record video here.'); return; }
+  $('liveOv').classList.remove('hidden'); $('liveGo').textContent = 'Start'; $('liveCount').textContent = '0';
+  $('liveMsg').textContent = 'Put the object in the middle, on a plain background. Keep the phone still.';
+  try {
+    LIVE.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 960 } }, audio: false });
+    $('liveVid').srcObject = LIVE.stream; await $('liveVid').play();
+  } catch (e) { closeLive(); toast('Camera not available: ' + (e.message || e)); return; }
+  cancelAnimationFrame(LIVE.raf); LIVE.raf = requestAnimationFrame(drawRing);
+}
+function closeLive() {
+  LIVE.on = false; clearInterval(LIVE.timer); cancelAnimationFrame(LIVE.raf);
+  if (LIVE.stream) LIVE.stream.getTracks().forEach(t => t.stop()); LIVE.stream = null;
+  $('liveTurn').disabled = false; $('liveOv').classList.add('hidden');
+}
+function grabLive() {
+  const v = $('liveVid'); if (!v.videoWidth) return;
+  const t = (performance.now() - LIVE.t0) / 1000, f = canvasImage(v, v.videoWidth, v.videoHeight), i = LIVE.frames.length;
+  LIVE.frames.push(null); LIVE.thumbs.push(Hulma.greyThumb(f.img)); LIVE.times.push(t);
+  f.canvas.toBlob(b => { LIVE.frames[i] = { t, blob: b }; }, 'image/jpeg', 0.88);
+}
+async function stopLive(keep) {
+  if (!LIVE.on) return;
+  LIVE.on = false; clearInterval(LIVE.timer);
+  const frames = LIVE.frames, thumbs = LIVE.thumbs, times = LIVE.times;
+  await new Promise(r => setTimeout(r, 300)); // let the last JPEGs finish
+  closeLive();
+  if (!keep || thumbs.length < 10) { if (keep) toast('Too short. Record a full turn.'); return; }
+  VID.src = { kind: 'live', frames: frames.filter(Boolean) }; VID.dur = times[times.length - 1];
+  vidStatus('Looking for one full turn…'); await Hulma.tick();
+  await useTurn(Hulma.findTurn(thumbs, times));
+}
+$('liveBtn').addEventListener('click', openLive);
+$('liveCancel').addEventListener('click', () => { if (LIVE.on) { LIVE.on = false; clearInterval(LIVE.timer); } closeLive(); });
+$('liveTurn').addEventListener('change', e => { LIVE.turn = +e.target.value; });
+$('liveGo').addEventListener('click', () => {
+  if (LIVE.on) { stopLive(true); return; }
+  LIVE.turn = +$('liveTurn').value; LIVE.frames = []; LIVE.thumbs = []; LIVE.times = []; LIVE.on = true; LIVE.t0 = performance.now();
+  $('liveGo').textContent = 'Stop'; $('liveTurn').disabled = true; grabLive(); LIVE.timer = setInterval(grabLive, 200);
+  try { navigator.vibrate && navigator.vibrate(60); } catch (e) { }
 });
 
 /* ---------- picture mode: one image -> 3D ---------- */
