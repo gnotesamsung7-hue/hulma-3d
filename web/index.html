@@ -94,7 +94,11 @@ details li{margin:4px 0}
 details li b{color:var(--ink);font-weight:500}
 .toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 14px;border-radius:10px;font-size:14px;font-weight:500;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90vw;z-index:9}
 .toast.on{opacity:1}
-.modes{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px 12px 0}
+.modes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:12px 12px 0}
+@media (max-width:460px){.modes button{flex-direction:column;align-items:flex-start;gap:4px;padding:9px 10px;font-size:14px}.modes button small{font-size:11px}}
+.picPrev{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.picPrev canvas{width:min(220px,48%);height:auto;border-radius:10px;border:1px solid var(--line);background:#000}
+.picPrev .note{flex:1;min-width:150px}
 .modes button{display:flex;align-items:center;gap:10px;text-align:left;background:var(--raise);border:1px solid var(--line);border-radius:12px;padding:10px 12px;cursor:pointer;font-weight:600;font-size:15px}
 .modes button small{display:block;font-weight:400;font-size:12px;color:var(--mute)}
 .modes button svg{width:24px;height:24px;flex:none;color:var(--mute)}
@@ -155,7 +159,50 @@ details li b{color:var(--ink);font-weight:500}
   <section class="panel" aria-label="Scan steps">
     <div class="modes">
       <button id="mObject" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3 20 7.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5 12 12l8-4.5M12 12v9"/></svg><span>Object<small>from photos</small></span></button>
+      <button id="mPic" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></svg><span>Picture<small>one image</small></span></button>
       <button id="mPlace" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 20V9l9-5 9 5v11"/><path d="M3 20h18M9 20v-6h6v6"/></svg><span>Place<small>AR depth scan</small></span></button>
+    </div>
+
+    <!-- PICTURE MODE -->
+    <div id="picUI" class="hidden">
+      <div class="pane on">
+        <div class="callout example" id="picDemoNote">Example loaded: a drawing of a chick, puffed up into 3D. Choose your own picture or drawing to try it.</div>
+        <div class="row">
+          <label class="btn primary" for="picIn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m3 16 5-5 4 4 3-3 6 6"/></svg>Choose picture</label>
+          <input id="picIn" type="file" accept="image/*" class="hidden">
+          <label class="btn" for="picCam">Take photo</label>
+          <input id="picCam" type="file" accept="image/*" capture="environment" class="hidden">
+        </div>
+        <div class="picPrev">
+          <canvas id="picCanvas" width="320" height="240" aria-label="Your picture with the cut-out shown in cyan"></canvas>
+          <div class="note" id="picInfo"></div>
+        </div>
+        <div class="field"><label>How to make it 3D</label>
+          <div class="seg" id="picMethod"><button data-v="puff" aria-pressed="true">Puff up the cut-out</button><button data-v="depth">AI depth</button></div>
+        </div>
+        <div class="note" id="picMethodNote"></div>
+        <div class="two" id="puffOpts">
+          <div class="field"><label for="picThr">Cut-out: background difference <output id="picThrO">30</output></label><input type="range" id="picThr" min="8" max="90" value="30"></div>
+          <div class="field"><label for="picShadow">Cut-out: ignore shadows <output id="picShadowO">65%</output></label><input type="range" id="picShadow" min="0" max="100" value="65"></div>
+          <div class="field"><label for="picThick">Puffiness <output id="picThickO">0.8</output></label><input type="range" id="picThick" min="20" max="160" value="80"></div>
+          <div class="field"><label for="picBack">Back side</label><select id="picBack"><option value="mirror" selected>Same picture (seen through)</option><option value="plain">Plain colour</option></select></div>
+        </div>
+        <div class="two hidden" id="depthOpts">
+          <div class="field"><label for="picStrength">Depth strength <output id="picStrengthO">1.0</output></label><input type="range" id="picStrength" min="20" max="250" value="100"></div>
+          <div class="field"><label for="picCut">Remove far background <output id="picCutO">0%</output></label><input type="range" id="picCut" min="0" max="85" value="0"></div>
+          <div class="field"><label for="picMask">Keep</label><select id="picMask"><option value="all" selected>Whole picture (relief)</option><option value="cut">Only the cut-out subject</option></select></div>
+        </div>
+        <div class="field"><label>Detail</label>
+          <div class="seg" id="picRes"><button data-v="128">Low</button><button data-v="200" aria-pressed="true">Normal</button><button data-v="280">High</button></div>
+        </div>
+        <div class="row"><button class="btn primary" id="picBuild">Make 3D</button><span class="note" id="picStatus"></span></div>
+        <div class="progress" aria-hidden="true"><i id="picBar"></i></div>
+        <div class="result" id="picStats"></div>
+        <div class="two">
+          <div class="field"><label for="picHeight">Real height (cm)</label><input type="number" id="picHeight" min="0.5" max="500" step="0.5" value="15"></div>
+          <div class="field"><label>&nbsp;</label><div class="row"><button class="btn" id="picAR" disabled>View in AR</button><button class="btn" id="picZip" disabled>Download (.zip)</button></div></div>
+        </div>
+      </div>
     </div>
 
     <!-- PLACE MODE -->
@@ -842,6 +889,151 @@ H.reconstruct = async function (views, opt, progress) {
   mesh.col = await colorize(mesh, occ, N, R, views.map(v => v.img), cams, p => say('Painting colours from photos…', 0.6 + 0.38 * p));
   say('Done', 1);
   return { mesh, occ, N, R, el, dir, cams, coverage: cov, calib, allowMiss };
+};
+
+/* ---------- single picture -> 3D ---------- */
+/* bilinear resize of an RGBA image */
+H.resizeImg = function (img, w, h) {
+  const out = new Uint8ClampedArray(w * h * 4), D = img.data, W = img.width, Hh = img.height;
+  const sx = W / w, sy = Hh / h;
+  for (let y = 0; y < h; y++) {
+    const fy = Math.min(Hh - 1.001, Math.max(0, (y + 0.5) * sy - 0.5)), y0 = fy | 0, ty = fy - y0;
+    for (let x = 0; x < w; x++) {
+      const fx = Math.min(W - 1.001, Math.max(0, (x + 0.5) * sx - 0.5)), x0 = fx | 0, tx = fx - x0;
+      const a = (y0 * W + x0) * 4, b = a + 4, c = a + W * 4, d = c + 4, o = (y * w + x) * 4;
+      for (let k = 0; k < 4; k++) out[o + k] = (D[a + k] * (1 - tx) + D[b + k] * tx) * (1 - ty) + (D[c + k] * (1 - tx) + D[d + k] * tx) * ty;
+    }
+  }
+  return { width: w, height: h, data: out };
+};
+/* nearest resample of a single-channel array */
+H.resizeNearest = function (src, W, Hh, w, h, Ctor) {
+  const out = new (Ctor || Uint8Array)(w * h);
+  for (let y = 0; y < h; y++) { const yy = Math.min(Hh - 1, ((y + 0.5) * Hh / h) | 0); for (let x = 0; x < w; x++) out[y * w + x] = src[yy * W + Math.min(W - 1, ((x + 0.5) * W / w) | 0)]; }
+  return out;
+};
+/* bilinear resample of a float field */
+H.resizeField = function (src, W, Hh, w, h) {
+  const out = new Float32Array(w * h);
+  for (let y = 0; y < h; y++) {
+    const fy = Math.min(Hh - 1.001, Math.max(0, (y + 0.5) * Hh / h - 0.5)), y0 = fy | 0, ty = fy - y0;
+    for (let x = 0; x < w; x++) {
+      const fx = Math.min(W - 1.001, Math.max(0, (x + 0.5) * W / w - 0.5)), x0 = fx | 0, tx = fx - x0, a = y0 * W + x0;
+      out[y * w + x] = (src[a] * (1 - tx) + src[a + 1] * tx) * (1 - ty) + (src[a + W] * (1 - tx) + src[a + W + 1] * tx) * ty;
+    }
+  }
+  return out;
+};
+/* chamfer distance (pixels) from each inside pixel to the nearest outside pixel */
+function distInside(m, w, h) {
+  const INF = 1e9, d = new Float32Array(w * h);
+  for (let i = 0; i < d.length; i++) d[i] = m[i] ? INF : 0;
+  const at = (x, y) => (x < 0 || y < 0 || x >= w || y >= h) ? 0 : d[y * w + x];
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = y * w + x; if (!d[i]) continue;
+    d[i] = Math.min(d[i], at(x - 1, y) + 1, at(x, y - 1) + 1, at(x - 1, y - 1) + 1.4142, at(x + 1, y - 1) + 1.4142);
+  }
+  for (let y = h - 1; y >= 0; y--) for (let x = w - 1; x >= 0; x--) {
+    const i = y * w + x; if (!d[i]) continue;
+    d[i] = Math.min(d[i], at(x + 1, y) + 1, at(x, y + 1) + 1, at(x + 1, y + 1) + 1.4142, at(x - 1, y + 1) + 1.4142);
+  }
+  return d;
+}
+function blurInside(f, m, w, h, passes) {
+  const t = new Float32Array(f.length);
+  for (let p = 0; p < passes; p++) {
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = y * w + x; if (!m[i]) { t[i] = 0; continue; }
+      let s = 0, n = 0;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
+        const j = yy * w + xx; if (m[j]) { s += f[j]; n++; }
+      }
+      t[i] = s / n;
+    }
+    f.set(t);
+  }
+}
+/* Build a closed mesh from front/back height maps over the inside pixels.
+   Rim pixels (inside, touching outside) are shared by front and back so the shell is sealed.
+   World: x right, y up, front faces +z; fitted to [-1,1] on the long side. */
+H.heightMesh = function (w, h, inside, front, back, colF, colB) {
+  const n = w * h, iF = new Int32Array(n).fill(-1), iB = new Int32Array(n).fill(-1);
+  const P = [], C = [], s = Math.max(w, h) / 2;
+  const rim = i => { const x = i % w, y = (i - x) / w; return x === 0 || y === 0 || x === w - 1 || y === h - 1 || !inside[i - 1] || !inside[i + 1] || !inside[i - w] || !inside[i + w]; };
+  for (let i = 0; i < n; i++) {
+    if (!inside[i]) continue;
+    const x = i % w, y = (i - x) / w, X = (x + 0.5 - w / 2) / s, Y = -(y + 0.5 - h / 2) / s;
+    const r = rim(i);
+    iF[i] = P.length / 3; P.push(X, Y, r ? 0 : front[i] / s); C.push(colF[i * 3], colF[i * 3 + 1], colF[i * 3 + 2]);
+    if (r) iB[i] = iF[i];
+    else { iB[i] = P.length / 3; P.push(X, Y, back[i] / s); C.push(colB[i * 3], colB[i * 3 + 1], colB[i * 3 + 2]); }
+  }
+  const I = [];
+  const tri = (A, a, b, c) => { if (a >= 0 && b >= 0 && c >= 0 && a !== b && b !== c && a !== c) I.push(a, b, c); };
+  for (let y = 0; y < h - 1; y++) for (let x = 0; x < w - 1; x++) {
+    const a = y * w + x, b = a + 1, c = a + w, d = c + 1;
+    const ia = inside[a], ib = inside[b], ic = inside[c], id = inside[d], k = ia + ib + ic + id;
+    if (k === 4) {
+      tri(0, iF[a], iF[c], iF[b]); tri(0, iF[b], iF[c], iF[d]);
+      tri(0, iB[a], iB[b], iB[c]); tri(0, iB[b], iB[d], iB[c]);
+    } else if (k === 3) {
+      // the three present corners, in counter-clockwise order as seen from +z
+      const q = ia && ib && ic ? [a, c, b] : ia && ib && id ? [a, d, b] : ia && ic && id ? [a, c, d] : [b, c, d];
+      tri(0, iF[q[0]], iF[q[1]], iF[q[2]]); tri(0, iB[q[0]], iB[q[2]], iB[q[1]]);
+    }
+  }
+  const mesh = { wpos: new Float32Array(P), col: new Uint8Array(C), idx: new Uint32Array(I) };
+  mesh.pos = mesh.wpos;
+  H.smoothMesh(mesh, 1);
+  return mesh;
+};
+function keepLargest(m, w, h) { return largest2D(m, w, h); }
+/* "Puff up": inflate a cut-out like a balloon. img and mask at the same (grid) size. */
+H.puffMesh = function (img, mask, opt) {
+  opt = opt || {};
+  const w = img.width, h = img.height, n = w * h, D = img.data;
+  const inside = keepLargest(mask, w, h);
+  const d = distInside(inside, w, h); let dm = 0; for (let i = 0; i < n; i++) if (d[i] > dm) dm = d[i];
+  if (dm < 2) throw new Error('The cut-out is too small. Adjust the cut-out sliders so the subject is filled in.');
+  const f = new Float32Array(n); let fm = 0;
+  for (let i = 0; i < n; i++) if (inside[i]) { const v = Math.sqrt(Math.max(0, d[i] * (2 * dm - d[i]))); f[i] = v; if (v > fm) fm = v; }
+  const T = (opt.thickness == null ? 0.6 : opt.thickness) * dm / fm;
+  for (let i = 0; i < n; i++) f[i] *= T;
+  blurInside(f, inside, w, h, 2);
+  const back = new Float32Array(n), br = opt.backDepth == null ? 1 : opt.backDepth;
+  for (let i = 0; i < n; i++) back[i] = -f[i] * br;
+  const colF = new Uint8Array(n * 3);
+  let ar = 0, ag = 0, ab = 0, ac = 0;
+  for (let i = 0; i < n; i++) { colF[i * 3] = D[i * 4]; colF[i * 3 + 1] = D[i * 4 + 1]; colF[i * 3 + 2] = D[i * 4 + 2]; if (inside[i]) { ar += D[i * 4]; ag += D[i * 4 + 1]; ab += D[i * 4 + 2]; ac++; } }
+  let colB = colF;
+  if (opt.backStyle === 'plain') {
+    colB = new Uint8Array(n * 3); const r = ar / ac * 0.75, g = ag / ac * 0.75, b = ab / ac * 0.75;
+    for (let i = 0; i < n; i++) { colB[i * 3] = r; colB[i * 3 + 1] = g; colB[i * 3 + 2] = b; }
+  }
+  return H.heightMesh(w, h, inside, f, back, colF, colB);
+};
+/* "AI depth": relief from a disparity map (bigger = closer). img, disp, optional mask at grid size. */
+H.reliefMesh = function (img, disp, mask, opt) {
+  opt = opt || {};
+  const w = img.width, h = img.height, n = w * h, D = img.data;
+  let lo = 1e30, hi = -1e30;
+  for (let i = 0; i < n; i++) { if (mask && !mask[i]) continue; const v = disp[i]; if (v < lo) lo = v; if (v > hi) hi = v; }
+  const rng = Math.max(1e-6, hi - lo), cut = opt.cutoff || 0;
+  let inside = new Uint8Array(n);
+  for (let i = 0; i < n; i++) inside[i] = (!mask || mask[i]) && (disp[i] - lo) / rng >= cut ? 1 : 0;
+  if (mask || cut > 0) inside = keepLargest(inside, w, h);
+  const dd = distInside(inside, w, h), strength = (opt.strength == null ? 1 : opt.strength) * Math.max(w, h) * 0.32;
+  const f = new Float32Array(n), back = new Float32Array(n), plate = Math.max(w, h) * 0.012;
+  for (let i = 0; i < n; i++) if (inside[i]) {
+    const e = Math.min(1, dd[i] / 4);
+    f[i] = (plate + ((disp[i] - lo) / rng - cut) / Math.max(1e-6, 1 - cut) * strength) * e;
+    back[i] = -plate * e;
+  }
+  blurInside(f, inside, w, h, 1);
+  const colF = new Uint8Array(n * 3), colB = new Uint8Array(n * 3);
+  for (let i = 0; i < n; i++) { colF[i * 3] = D[i * 4]; colF[i * 3 + 1] = D[i * 4 + 1]; colF[i * 3 + 2] = D[i * 4 + 2]; colB[i * 3] = colB[i * 3 + 1] = colB[i * 3 + 2] = 120; }
+  return H.heightMesh(w, h, inside, f, back, colF, colB);
 };
 
 /* ---------- exporters ---------- */
@@ -3511,7 +3703,7 @@ $('camIn').addEventListener('change', e => { addFiles(e.target.files, false); e.
 $('galIn').addEventListener('change', e => { addFiles(e.target.files, true); e.target.value = ''; });
 function clearAll(silent) {
   S.photos = []; S.demo = false; S.segDirty = true; S.result = null;
-  if (S.mode !== 'place') viewer.setMesh(null); setResult(null); renderPhotos(); $('masks').innerHTML = ''; $('maskSummary').textContent = '';
+  if (S.mode === 'object') viewer.setMesh(null); setResult(null); renderPhotos(); $('masks').innerHTML = ''; $('maskSummary').textContent = '';
   if (!silent) toast('Cleared. Take your first photo.');
 }
 $('newScan').addEventListener('click', () => clearAll(false));
@@ -3615,7 +3807,7 @@ async function build() {
     const t0 = performance.now();
     const res = await Hulma.reconstruct(views, { N: S.q, el: el === 'auto' ? null : +el, dir: +$('dir').value, center: S.center, allowMiss: strict === 'auto' ? null : +strict }, st);
     res.ms = performance.now() - t0; S.result = res;
-    if (S.mode !== 'place') viewer.setMesh(res.mesh, res.cams);
+    if (S.mode === 'object') viewer.setMesh(res.mesh, res.cams);
     setResult(res);
     st('Done in ' + (res.ms / 1000).toFixed(1) + ' s', 1);
   } catch (e) { st(e.message || String(e), 0); console.error(e); }
@@ -3634,7 +3826,7 @@ function setResult(r) {
     '<div class="kv"><span>Triangles</span><strong>' + nt.toLocaleString() + '</strong></div>';
   $('resultNote').textContent = cls === 'good' ? 'The shape agrees with your photos. Spin it around, then export in step 4.' :
     'The shape only partly agrees with the photos. Try: fix flagged cut-outs in step 2, set the turn direction or camera height by hand, or switch "How you shot it".';
-  if (S.mode === 'place') return;
+  if (S.mode !== 'object') return;
   $('vbadge').textContent = S.demo ? 'Example model' : 'Your model';
   $('vstats').textContent = nv.toLocaleString() + ' pts · ' + S.photos.length + ' photos';
 }
@@ -4056,10 +4248,14 @@ function renderArState() {
   $('objArNote').innerHTML = arInfo.ok ? 'View in AR puts the model on your table or floor at the real height you entered.' : 'View in AR: ' + (XRM.WHY[arInfo.why] || XRM.WHY.noar);
 }
 function setMode(m) {
-  S.mode = m; $('mObject').setAttribute('aria-pressed', m === 'object'); $('mPlace').setAttribute('aria-pressed', m === 'place');
-  $('objectUI').classList.toggle('hidden', m !== 'object'); $('placeUI').classList.toggle('hidden', m !== 'place');
-  $('vCams').classList.toggle('hidden', m === 'place'); $('vClay').classList.toggle('hidden', m === 'place');
-  if (m === 'place') {
+  S.mode = m;
+  $('mObject').setAttribute('aria-pressed', m === 'object'); $('mPlace').setAttribute('aria-pressed', m === 'place'); $('mPic').setAttribute('aria-pressed', m === 'pic');
+  $('objectUI').classList.toggle('hidden', m !== 'object'); $('placeUI').classList.toggle('hidden', m !== 'place'); $('picUI').classList.toggle('hidden', m !== 'pic');
+  $('vCams').classList.toggle('hidden', m !== 'object'); $('vClay').classList.toggle('hidden', m === 'place');
+  if (m === 'pic') {
+    if (!viewer.clay) { press('vColor', true); press('vClay', false); }
+    if (!PIC.img) loadPicDemo(); else showPic();
+  } else if (m === 'place') {
     if (!S.place) { S.place = Hulma.demoPlace(0.03); S.placeDemo = true; }
     viewer.setPoints(S.place); viewer.dist = 3.1; viewer.pitch = 0.55; viewer.draw(); renderPlace();
   } else {
@@ -4069,6 +4265,7 @@ function setMode(m) {
 }
 $('mObject').addEventListener('click', () => setMode('object'));
 $('mPlace').addEventListener('click', () => setMode('place'));
+$('mPic').addEventListener('click', () => setMode('pic'));
 function placeExtent(pc) {
   const P = pc.pos, lo = [1e9, 1e9, 1e9], hi = [-1e9, -1e9, -1e9];
   for (let i = 0; i < P.length; i += 3) for (let k = 0; k < 3; k++) { const v = P[i + k]; if (v < lo[k]) lo[k] = v; if (v > hi[k]) hi[k] = v; }
@@ -4126,6 +4323,168 @@ $('placeZip').addEventListener('click', async () => {
   const zip = Hulma.zip([{ name: 'place.ply', data: Hulma.pointsToPLY(pc.pos, pc.col) }, { name: 'place.glb', data: Hulma.toGLB(pc) }, { name: 'README.txt', data: readme }]);
   await saveFile((S.placeDemo ? 'hulma-example-room' : 'hulma-place') + '.zip', new Blob([zip], { type: 'application/zip' }));
 });
+
+/* ---------- picture mode: one image -> 3D ---------- */
+const TJS_URL = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1/dist/transformers.min.js';
+const DEPTH_MODEL = 'onnx-community/depth-anything-v2-small';
+const PIC = { img: null, demo: false, method: 'puff', res: 200, mesh: null, seg: null, segKey: '', disp: null, busy: false };
+let depthPipe = null;
+function picSegment() {
+  const o = { thr: +$('picThr').value, lumaW: 1 - 0.97 * (+$('picShadow').value) / 100 }, key = o.thr + ':' + o.lumaW;
+  if (!PIC.seg || PIC.segKey !== key) { PIC.seg = Hulma.segment(PIC.img, o); PIC.segKey = key; }
+  return PIC.seg;
+}
+function usesCutout() { return PIC.method === 'puff' || $('picMask').value === 'cut'; }
+function drawPicPreview() {
+  const c = $('picCanvas'), img = PIC.img; if (!img) return;
+  c.width = img.width; c.height = img.height;
+  const out = new ImageData(img.width, img.height), D = img.data, O = out.data, m = usesCutout() ? picSegment().mask : null;
+  for (let j = 0; j < img.width * img.height; j++) {
+    const k = j * 4;
+    if (!m || m[j]) { O[k] = D[k]; O[k + 1] = D[k + 1]; O[k + 2] = D[k + 2]; if (m) { O[k] = O[k] * 0.7 + 19; O[k + 1] = O[k + 1] * 0.7 + 62; O[k + 2] = O[k + 2] * 0.7 + 60; } }
+    else { O[k] = D[k] * 0.25; O[k + 1] = D[k + 1] * 0.25; O[k + 2] = D[k + 2] * 0.25; }
+    O[k + 3] = 255;
+  }
+  c.getContext('2d').putImageData(out, 0, 0);
+  let info = (PIC.demo ? 'Example picture' : 'Your picture') + ', ' + img.width + ' × ' + img.height + '.';
+  if (m) { const sg = picSegment(); info += sg.touches ? ' <b>The cut-out touches the edge</b>: raise "background difference" or use a photo with space around the subject.' : ' Cyan shows the cut-out. Adjust the sliders until it covers the whole subject.'; }
+  $('picInfo').innerHTML = info;
+}
+function setPicMethodUI() {
+  document.querySelectorAll('#picMethod button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === PIC.method));
+  $('puffOpts').classList.toggle('hidden', PIC.method !== 'puff'); $('depthOpts').classList.toggle('hidden', PIC.method !== 'depth');
+  $('picMethodNote').innerHTML = PIC.method === 'puff'
+    ? 'Cuts the subject out of the background, then inflates it like a balloon. Works offline, in seconds. Best for one toy, object, character or drawing on a plain background.'
+    : 'An AI model estimates how far away each part of the photo is and raises the nearer parts. Good for faces, pets, rooms and street scenes. The first use downloads the model (about 27 MB), then it works offline.'
+      + (XRM.framed ? ' <b>Not available inside the Claude preview</b>: use the installed app or the web app link.' : '');
+  drawPicPreview();
+}
+document.querySelectorAll('#picMethod button').forEach(b => b.addEventListener('click', () => { PIC.method = b.dataset.v; setPicMethodUI(); }));
+document.querySelectorAll('#picRes button').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('#picRes button').forEach(x => x.setAttribute('aria-pressed', x === b)); PIC.res = +b.dataset.v;
+}));
+let picT;
+[['picThr', v => v], ['picShadow', v => v + '%'], ['picThick', v => (v / 100).toFixed(1)], ['picStrength', v => (v / 100).toFixed(1)], ['picCut', v => v + '%']].forEach(([id, fmt]) => {
+  $(id).addEventListener('input', () => {
+    $(id + 'O').textContent = fmt(+$(id).value);
+    clearTimeout(picT); picT = setTimeout(() => { drawPicPreview(); if (PIC.img && !PIC.busy && (PIC.method === 'puff' || PIC.disp)) buildPic(); }, 260);
+  });
+});
+['picBack', 'picMask'].forEach(id => $(id).addEventListener('change', () => { drawPicPreview(); if (PIC.img && !PIC.busy && (PIC.method === 'puff' || PIC.disp)) buildPic(); }));
+async function getDisparity(st) {
+  if (PIC.disp) return PIC.disp;
+  if (XRM.framed) throw new Error('AI depth can\'t download its model inside the Claude preview. Open the installed app or the web app link, or use Puff up here.');
+  st('Loading the AI depth model…', 0.02);
+  if (!depthPipe) {
+    let T;
+    try { T = await import(TJS_URL); } catch (e) { throw new Error('Couldn\'t load the AI library. Check your internet connection and try again.'); }
+    T.env.allowLocalModels = false;
+    const files = {};
+    const cb = p => {
+      if (p.status === 'progress' && p.total) {
+        files[p.file] = [p.loaded, p.total]; let l = 0, t = 0; for (const k in files) { l += files[k][0]; t += files[k][1]; }
+        st('Downloading AI model: ' + (l / 1048576).toFixed(1) + ' of ' + (t / 1048576).toFixed(1) + ' MB (one time only)', 0.02 + 0.68 * l / t);
+      }
+    };
+    if (navigator.gpu) { try { depthPipe = await T.pipeline('depth-estimation', DEPTH_MODEL, { device: 'webgpu', dtype: 'fp16', progress_callback: cb }); } catch (e) { depthPipe = null; } }
+    if (!depthPipe) {
+      try { depthPipe = await T.pipeline('depth-estimation', DEPTH_MODEL, { device: 'wasm', dtype: 'q8', progress_callback: cb }); }
+      catch (e) { throw new Error('The AI model didn\'t load (' + (e.message || e) + '). Check your internet connection.'); }
+    }
+  }
+  st('Estimating depth…', 0.75); await Hulma.tick();
+  const c = document.createElement('canvas'); c.width = PIC.img.width; c.height = PIC.img.height;
+  c.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(PIC.img.data), c.width, c.height), 0, 0);
+  const out = await depthPipe(c);
+  const pd = out.predicted_depth, dims = pd.dims, h = dims[dims.length - 2], w = dims[dims.length - 1];
+  let data = Float32Array.from(pd.data);
+  if (w !== PIC.img.width || h !== PIC.img.height) data = Hulma.resizeField(data, w, h, PIC.img.width, PIC.img.height);
+  PIC.disp = data; return data;
+}
+async function buildPic() {
+  if (!PIC.img || PIC.busy) return;
+  PIC.busy = true; $('picBuild').disabled = true;
+  const st = (t, p) => { $('picStatus').textContent = t; $('picBar').style.width = Math.round((p || 0) * 100) + '%'; };
+  try {
+    const W = PIC.img.width, Hh = PIC.img.height, s = PIC.res / Math.max(W, Hh);
+    const gw = Math.max(16, Math.round(W * s)), gh = Math.max(16, Math.round(Hh * s));
+    const small = Hulma.resizeImg(PIC.img, gw, gh);
+    let mesh;
+    if (PIC.method === 'puff') {
+      st('Cutting out and puffing up…', 0.3); await Hulma.tick();
+      // crop to the subject so all the detail goes to it
+      const sg = picSegment(); if (!sg.bbox) throw new Error('Nothing was cut out. Lower "background difference" or use a photo with a plainer background.');
+      const pad = Math.round(Math.max(W, Hh) * 0.03), [bx0, by0, bx1, by1] = sg.bbox;
+      const x0 = Math.max(0, bx0 - pad), y0 = Math.max(0, by0 - pad), x1 = Math.min(W - 1, bx1 + pad), y1 = Math.min(Hh - 1, by1 + pad);
+      const cw = x1 - x0 + 1, ch = y1 - y0 + 1, cimg = { width: cw, height: ch, data: new Uint8ClampedArray(cw * ch * 4) }, cm = new Uint8Array(cw * ch);
+      for (let y = 0; y < ch; y++) { cimg.data.set(PIC.img.data.subarray(((y + y0) * W + x0) * 4, ((y + y0) * W + x0 + cw) * 4), y * cw * 4); cm.set(sg.mask.subarray((y + y0) * W + x0, (y + y0) * W + x0 + cw), y * cw); }
+      const k = PIC.res / Math.max(cw, ch), pw = Math.max(16, Math.round(cw * k)), ph = Math.max(16, Math.round(ch * k));
+      mesh = Hulma.puffMesh(Hulma.resizeImg(cimg, pw, ph), Hulma.resizeNearest(cm, cw, ch, pw, ph), { thickness: +$('picThick').value / 100, backStyle: $('picBack').value });
+    } else {
+      const disp = await getDisparity(st);
+      st('Building the relief…', 0.92); await Hulma.tick();
+      const mask = $('picMask').value === 'cut' ? Hulma.resizeNearest(picSegment().mask, W, Hh, gw, gh) : null;
+      mesh = Hulma.reliefMesh(small, Hulma.resizeField(disp, W, Hh, gw, gh), mask, { strength: +$('picStrength').value / 100, cutoff: +$('picCut').value / 100 });
+    }
+    PIC.mesh = mesh;
+    if (S.mode === 'pic') viewer.setMesh(mesh, null);
+    showPicStats(); st('Done', 1);
+  } catch (e) { st(e.message || String(e), 0); console.error(e); }
+  PIC.busy = false; $('picBuild').disabled = false;
+}
+function showPicStats() {
+  const m = PIC.mesh; $('picAR').disabled = $('picZip').disabled = !m;
+  if (!m) { $('picStats').innerHTML = ''; return; }
+  $('picStats').innerHTML = '<div class="kv"><span>Method</span><strong>' + (PIC.method === 'puff' ? 'Puff up' : 'AI depth') + '</strong></div>' +
+    '<div class="kv"><span>Triangles</span><strong>' + (m.idx.length / 3).toLocaleString() + '</strong></div>';
+  if (S.mode === 'pic') { $('vbadge').textContent = PIC.demo ? 'Example picture model' : 'Your picture model'; $('vstats').textContent = (m.wpos.length / 3).toLocaleString() + ' pts · 1 picture'; }
+}
+function showPic() {
+  $('picDemoNote').classList.toggle('hidden', !PIC.demo);
+  setPicMethodUI();
+  if (PIC.mesh) { viewer.setMesh(PIC.mesh, null); showPicStats(); } else viewer.setMesh(null);
+}
+async function setPicImage(img, demo) {
+  PIC.img = img; PIC.demo = demo; PIC.disp = null; PIC.seg = null; PIC.mesh = null;
+  viewer.yaw = 0.35; viewer.pitch = 0.15; viewer.dist = 3.3;
+  showPic(); await buildPic();
+}
+function loadPicDemo() {
+  // a child's-drawing style chick on paper
+  const c = document.createElement('canvas'); c.width = 480; c.height = 400; const g = c.getContext('2d');
+  g.fillStyle = '#f5f3ee'; g.fillRect(0, 0, 480, 400);
+  const ell = (x, y, rx, ry, col) => { g.fillStyle = col; g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); g.fill(); };
+  g.fillStyle = '#f0782a'; g.fillRect(200, 330, 13, 38); g.fillRect(262, 330, 13, 38); g.fillRect(190, 362, 30, 9); g.fillRect(252, 362, 30, 9);
+  ell(240, 245, 108, 103, '#facd28'); ell(240, 120, 60, 58, '#facd28'); ell(195, 270, 42, 37, '#ebb41e');
+  g.fillStyle = '#f0782a'; g.beginPath(); g.moveTo(292, 108); g.lineTo(340, 122); g.lineTo(292, 136); g.closePath(); g.fill();
+  ell(262, 104, 9, 10, '#1e1e1e'); ell(265, 101, 3, 3, '#ffffff'); ell(214, 135, 13, 8, '#f6a6a0');
+  const id = g.getImageData(0, 0, 480, 400);
+  setPicImage({ width: 480, height: 400, data: id.data }, true);
+}
+async function picFromFile(file) {
+  if (!file) return;
+  $('picStatus').textContent = 'Reading picture…';
+  try { const r = await loadFile(file); await setPicImage(r.img, false); }
+  catch (e) { $('picStatus').textContent = 'Couldn\'t read that picture. Use a JPEG or PNG.'; }
+}
+$('picIn').addEventListener('change', e => { picFromFile(e.target.files[0]); e.target.value = ''; });
+$('picCam').addEventListener('change', e => { picFromFile(e.target.files[0]); e.target.value = ''; });
+$('picBuild').addEventListener('click', buildPic);
+$('picAR').addEventListener('click', () => PIC.mesh && meshAR(PIC.mesh, +$('picHeight').value || 15));
+$('picZip').addEventListener('click', () => PIC.mesh && zipMesh(PIC.mesh, +$('picHeight').value || 15, PIC.demo ? 'hulma-example-picture' : 'hulma-picture', 'Made from one picture (' + (PIC.method === 'puff' ? 'Puff up' : 'AI depth') + ').'));
+
+/* shared mesh export + AR (object and picture modes) */
+async function zipMesh(mesh, hcm, base, note) {
+  const h = Math.max(0.1, hcm || 10); toast('Packing files…'); await Hulma.tick();
+  const readme = 'Hulma 3D export\n\nmodel.glb  real-size mesh in metres with colours (AR apps, Windows 3D Viewer, Blender, model-viewer)\nmodel.obj  mesh with per-vertex colours (Blender, MeshLab)\nmodel.ply  same mesh, binary, with colours\nmodel.stl  for 3D printing slicers (no colour)\n\nUnits: centimetres (GLB in metres). Object height: ' + h + ' cm.\n' + (note || '') + '\n';
+  const zip = Hulma.zip([{ name: 'model.glb', data: Hulma.toGLB(Hulma.finalMesh(mesh, h / 100)) }, { name: 'model.obj', data: Hulma.toOBJ(mesh, h) }, { name: 'model.ply', data: Hulma.toPLY(mesh, h) }, { name: 'model.stl', data: Hulma.toSTL(mesh, h) }, { name: 'README.txt', data: readme }]);
+  await saveFile(base.replace(/[^\w\-]+/g, '-') + '.zip', new Blob([zip], { type: 'application/zip' }));
+}
+async function meshAR(mesh, hcm) {
+  if (arBlocked() || XRM.active()) return;
+  const h = Math.max(0.1, hcm || 10) / 100, g = Hulma.finalMesh(mesh, h);
+  try { await XRM.startView({ kind: 'mesh', pos: g.pos, nrm: g.nrm, col: g.col, idx: g.idx, defaultScale: 1, miniScale: Math.min(1, 0.25 / h) }); } catch (e) { toast(e.message); }
+}
 
 /* ---------- get the app + share (QR) ---------- */
 const DEFAULT_REPO = 'gnotesamsung7-hue/hulma-3d';
